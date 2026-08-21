@@ -1,0 +1,6 @@
+{
+  "name": "Kalynt Flow",
+  "description": "A powerhouse productivity app with workspaces, tasks, notes, calendar, and document scanning, featuring a minimalist aesthetic and AI search grounding.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
