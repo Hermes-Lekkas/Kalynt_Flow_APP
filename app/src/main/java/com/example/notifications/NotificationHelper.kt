@@ -1,5 +1,6 @@
 package com.example.notifications
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -19,6 +20,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@SuppressLint("MissingPermission")
 object NotificationHelper {
 
     private const val TAG = "NotificationHelper"

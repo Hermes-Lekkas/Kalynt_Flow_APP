@@ -1,5 +1,6 @@
 package com.example
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.content.Intent
 import android.os.Build
@@ -26,6 +27,7 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 
+@SuppressLint("InvalidFragmentVersionForActivityResult")
 class MainActivity : ComponentActivity() {
   private lateinit var authViewModel: AuthViewModel
   private val currentIntentFlow = MutableStateFlow<Intent?>(null)

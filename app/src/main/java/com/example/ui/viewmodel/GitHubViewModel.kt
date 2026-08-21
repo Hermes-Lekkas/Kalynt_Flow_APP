@@ -56,10 +56,14 @@ class GitHubViewModel(application: Application) : AndroidViewModel(application) 
     init {
         // Automatically trigger sync for all linked repos on cold-start/screen initialization
         viewModelScope.launch {
-            connectionState.collect { state ->
-                if (state.isConnected) {
-                    syncAll()
+            try {
+                connectionState.collect { state ->
+                    if (state.isConnected) {
+                        syncAll()
+                    }
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

@@ -1,8 +1,13 @@
 package com.example.data
 
 import android.content.Context
+import android.content.SharedPreferences
+import android.os.Build
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.example.data.local.NoteEntity
+import com.example.data.local.TaskEntity
 import com.example.data.local.WorkspaceMemberEntity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -14,9 +19,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.security.KeyStore
 import java.util.Date
-import com.example.data.local.TaskEntity
-import com.example.data.local.NoteEntity
 
 data class GitHubConnectionState(
     val isConnected: Boolean = false,
@@ -32,26 +36,17 @@ data class LinkedRepo(
     val workspaceName: String = "",
     val syncStatus: String = "not_synced", // "synced", "syncing", "error"
     val lastSyncedAt: Long = 0L,
-    val openIssuesCount: Int = 0,
-    val openPrCount: Int = 0,
+    val openIssuesCount: Long = 0L,
+    val openPrCount: Long = 0L,
     val error: String? = null
 )
 
 class GitHubRepository(private val context: Context) {
+    private val TAG = "GitHubRepository"
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-    private val sharedPrefs = EncryptedSharedPreferences.create(
-        context,
-        "github_prefs",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val sharedPrefs: SharedPreferences = createEncryptedSharedPreferencesWithFallback(context)
     
     private val _connectionState = MutableStateFlow(GitHubConnectionState())
     val connectionState: StateFlow<GitHubConnectionState> = _connectionState.asStateFlow()
@@ -60,16 +55,89 @@ class GitHubRepository(private val context: Context) {
         checkConnectionStatus()
     }
 
+    private fun createEncryptedSharedPreferencesWithFallback(ctx: Context): SharedPreferences {
+        val prefFilename = "github_prefs"
+        try {
+            val masterKey = MasterKey.Builder(ctx)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+
+            return EncryptedSharedPreferences.create(
+                ctx,
+                prefFilename,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize EncryptedSharedPreferences on first attempt. Clearing corrupted state.", e)
+            
+            // 1. Delete MasterKey entry from Android Keystore if corrupted
+            try {
+                val keyStore = KeyStore.getInstance("AndroidKeyStore")
+                keyStore.load(null)
+                if (keyStore.containsAlias(MasterKey.DEFAULT_MASTER_KEY_ALIAS)) {
+                    keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                }
+            } catch (ksEx: Exception) {
+                Log.e(TAG, "Failed to delete corrupted Keystore entry", ksEx)
+            }
+
+            // 2. Delete the corrupted preferences file
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    ctx.deleteSharedPreferences(prefFilename)
+                } else {
+                    ctx.getSharedPreferences(prefFilename, Context.MODE_PRIVATE).edit().clear().commit()
+                }
+            } catch (prefEx: Exception) {
+                Log.e(TAG, "Failed to delete corrupted shared preferences file", prefEx)
+            }
+
+            // 3. Retry creating EncryptedSharedPreferences
+            try {
+                val newMasterKey = MasterKey.Builder(ctx)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+
+                return EncryptedSharedPreferences.create(
+                    ctx,
+                    prefFilename,
+                    newMasterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            } catch (retryEx: Exception) {
+                Log.e(TAG, "EncryptedSharedPreferences retry failed. Falling back to private SharedPreferences.", retryEx)
+                // 4. Safe fallback to standard private preferences so the app never crashes
+                return ctx.getSharedPreferences("github_prefs_safe", Context.MODE_PRIVATE)
+            }
+        }
+    }
+
     fun saveToken(token: String) {
-        sharedPrefs.edit().putString("github_token", token).apply()
+        try {
+            sharedPrefs.edit().putString("github_token", token).apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save token", e)
+        }
     }
 
     fun getToken(): String? {
-        return sharedPrefs.getString("github_token", null)
+        return try {
+            sharedPrefs.getString("github_token", null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get token", e)
+            null
+        }
     }
     
     fun clearToken() {
-        sharedPrefs.edit().remove("github_token").apply()
+        try {
+            sharedPrefs.edit().remove("github_token").apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear token", e)
+        }
     }
 
     private fun checkConnectionStatus() {
@@ -80,21 +148,26 @@ class GitHubRepository(private val context: Context) {
             return
         }
         
-        firestore.collection("users").document(uid).collection("githubConnection")
-            .document("status")
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null && snapshot.exists()) {
-                    val status = snapshot.getString("status")
-                    val username = snapshot.getString("githubUsername")
-                    _connectionState.value = GitHubConnectionState(
-                        isConnected = status == "connected",
-                        username = username,
-                        error = if (status == "error") "Sync error" else null
-                    )
-                } else {
-                    _connectionState.value = GitHubConnectionState(isConnected = false)
+        try {
+            firestore.collection("users").document(uid).collection("githubConnection")
+                .document("status")
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null && snapshot.exists()) {
+                        val status = snapshot.getString("status")
+                        val username = snapshot.getString("githubUsername")
+                        _connectionState.value = GitHubConnectionState(
+                            isConnected = status == "connected",
+                            username = username,
+                            error = if (status == "error") "Sync error" else null
+                        )
+                    } else {
+                        _connectionState.value = GitHubConnectionState(isConnected = false)
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to listen for connection status", e)
+            _connectionState.value = GitHubConnectionState(isConnected = false)
+        }
     }
     
     suspend fun connect(username: String, scopes: List<String>) {
@@ -140,7 +213,45 @@ class GitHubRepository(private val context: Context) {
                 }
                 if (snapshot != null) {
                     val repos = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(LinkedRepo::class.java)
+                        try {
+                            doc.toObject(LinkedRepo::class.java)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed standard deserialization for repo ${doc.id}, using fallback", e)
+                            try {
+                                val issuesNum = doc.get("openIssuesCount")
+                                val prsNum = doc.get("openPrCount")
+                                val issuesCount = when (issuesNum) {
+                                    is Number -> issuesNum.toLong()
+                                    is String -> issuesNum.toLongOrNull() ?: 0L
+                                    else -> 0L
+                                }
+                                val prsCount = when (prsNum) {
+                                    is Number -> prsNum.toLong()
+                                    is String -> prsNum.toLongOrNull() ?: 0L
+                                    else -> 0L
+                                }
+                                val syncedTime = when (val t = doc.get("lastSyncedAt")) {
+                                    is Number -> t.toLong()
+                                    is String -> t.toLongOrNull() ?: 0L
+                                    else -> 0L
+                                }
+                                LinkedRepo(
+                                    id = doc.getString("id") ?: doc.id,
+                                    name = doc.getString("name") ?: "",
+                                    fullName = doc.getString("fullName") ?: "",
+                                    workspaceId = doc.getString("workspaceId") ?: "",
+                                    workspaceName = doc.getString("workspaceName") ?: "",
+                                    syncStatus = doc.getString("syncStatus") ?: "not_synced",
+                                    lastSyncedAt = syncedTime,
+                                    openIssuesCount = issuesCount,
+                                    openPrCount = prsCount,
+                                    error = doc.getString("error")
+                                )
+                            } catch (inner: Exception) {
+                                Log.e(TAG, "Fallback parsing failed for doc ${doc.id}", inner)
+                                null
+                            }
+                        }
                     }
                     trySend(repos)
                 }
@@ -158,8 +269,8 @@ class GitHubRepository(private val context: Context) {
             workspaceName = workspaceName,
             syncStatus = "not_synced",
             lastSyncedAt = 0L,
-            openIssuesCount = 0,
-            openPrCount = 0
+            openIssuesCount = 0L,
+            openPrCount = 0L
         )
         firestore.collection("users").document(uid).collection("linkedRepos").document(repo.id.toString())
             .set(linkedRepo).await()
@@ -338,8 +449,8 @@ class GitHubRepository(private val context: Context) {
                 mapOf(
                     "syncStatus" to "synced",
                     "lastSyncedAt" to System.currentTimeMillis(),
-                    "openIssuesCount" to issuesList.size,
-                    "openPrCount" to prsList.size,
+                    "openIssuesCount" to issuesList.size.toLong(),
+                    "openPrCount" to prsList.size.toLong(),
                     "error" to null
                 ),
                 SetOptions.merge()
