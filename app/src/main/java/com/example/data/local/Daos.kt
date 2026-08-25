@@ -215,6 +215,9 @@ interface BlockedUserDao {
     @androidx.room.Query("SELECT * FROM blocked_users ORDER BY blockedAt DESC")
     fun getAllBlockedUsers(): kotlinx.coroutines.flow.Flow<List<BlockedUserEntity>>
 
+    @androidx.room.Query("SELECT * FROM blocked_users")
+    suspend fun getBlockedUsersSync(): List<BlockedUserEntity>
+
     @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun blockUser(blockedUser: BlockedUserEntity)
 

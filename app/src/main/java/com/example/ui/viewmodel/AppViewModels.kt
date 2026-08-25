@@ -38,7 +38,7 @@ sealed interface UserProfileState {
 
 class MainAppViewModel(application: Application) : AndroidViewModel(application) {
     val repository = AppRepository(application)
-    val firestoreTeamRepo = FirestoreTeamRepository()
+    val firestoreTeamRepo = FirestoreTeamRepository(application)
     val billingManager = BillingManager.getInstance(application)
     val chatRepository = com.example.data.ChatRepository(application)
     
@@ -412,8 +412,15 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
                                         )
                                     }
                                     viewModelScope.launch {
+                                        val incomingEmails = list.map { it.userEmail }.toSet()
                                         for (b in list) {
                                             blockedUserDao.blockUser(b)
+                                        }
+                                        val localBlocked = blockedUserDao.getBlockedUsersSync()
+                                        for (local in localBlocked) {
+                                            if (local.userEmail !in incomingEmails) {
+                                                blockedUserDao.unblockUser(local.userEmail)
+                                            }
                                         }
                                     }
                                 }
@@ -774,9 +781,10 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
             return
         }
         val currentEmail = FirebaseAuth.getInstance().currentUser?.email ?: ""
-        val currentMember = workspaceMembers.value.find { it.email == currentEmail }
+        val currentMember = allWorkspaceMembers.value.find { it.email == currentEmail && it.workspaceId == member.workspaceId }
         val isOwnerOrAdmin = currentMember?.role == "Owner" || currentMember?.role == "Admin"
-        if (!isOwnerOrAdmin && currentEmail.isNotBlank()) {
+        val isSelf = member.email == currentEmail
+        if (!isOwnerOrAdmin && !isSelf && currentEmail.isNotBlank()) {
             uiMessage.value = "Only workspace owners and admins can remove members."
             return
         }
