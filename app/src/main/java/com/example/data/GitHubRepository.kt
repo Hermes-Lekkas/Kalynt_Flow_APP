@@ -355,27 +355,59 @@ class GitHubRepository(private val context: Context) {
             val owner = parts[0]
             val repoName = parts[1]
             
-            // Fetch issues/PRs from GitHub API (fetch both open and closed to sync completed status)
-            val response = GitHubClient.api.getRepoIssues(authHeader, owner, repoName, state = "all")
-            if (!response.isSuccessful) {
-                val errorBody = response.errorBody()?.string() ?: "Unknown API error"
-                throw Exception("Failed to fetch issues: $errorBody")
+            // Fetch issues/PRs from GitHub API with pagination (fetch both open and closed to sync completed status)
+            val gitHubIssues = mutableListOf<GitHubIssue>()
+            var page = 1
+            var hasMore = true
+            while (hasMore && page <= 10) {
+                val response = GitHubClient.api.getRepoIssues(authHeader, owner, repoName, state = "all", perPage = 100, page = page)
+                if (response.isSuccessful) {
+                    val pageIssues = response.body() ?: emptyList()
+                    gitHubIssues.addAll(pageIssues)
+                    if (pageIssues.size < 100) {
+                        hasMore = false
+                    } else {
+                        page++
+                    }
+                } else {
+                    if (page == 1) {
+                        val errorBody = response.errorBody()?.string() ?: "Unknown API error"
+                        throw Exception("Failed to fetch issues: $errorBody")
+                    }
+                    hasMore = false
+                }
             }
-            
-            val gitHubIssues = response.body() ?: emptyList()
             
             val issuesList = gitHubIssues.filter { it.pull_request == null }
             val prsList = gitHubIssues.filter { it.pull_request != null }
             
-            // Fetch workspace members to map assignees
+            // Fetch workspace document and members to share tasks/notes with all collaborators
             val members = mutableListOf<WorkspaceMemberEntity>()
+            var workspaceMemberEmails = listOf(userEmail)
+            try {
+                val wsDoc = firestore.collection("workspaces").document(workspaceId).get().await()
+                if (wsDoc.exists()) {
+                    val emails = (wsDoc.get("memberEmails") as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+                    if (emails.isNotEmpty()) {
+                        workspaceMemberEmails = (emails + userEmail).distinct()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not fetch workspace memberEmails, defaulting to current user", e)
+            }
+
             try {
                 val membersSnap = firestore.collection("workspace_members")
                     .whereEqualTo("workspaceId", workspaceId)
                     .get().await()
                 for (doc in membersSnap.documents) {
                     val m = doc.toObject(WorkspaceMemberEntity::class.java)
-                    if (m != null) members.add(m)
+                    if (m != null) {
+                        members.add(m)
+                        if (m.email.isNotBlank() && !workspaceMemberEmails.contains(m.email)) {
+                            workspaceMemberEmails = workspaceMemberEmails + m.email
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 // ignore
@@ -428,7 +460,7 @@ class GitHubRepository(private val context: Context) {
                     assignedToName = assignedName,
                     assignedToEmail = assignedEmail,
                     dueDateMs = createdDateMs,
-                    memberEmails = listOf(userEmail),
+                    memberEmails = workspaceMemberEmails,
                     timestamp = System.currentTimeMillis()
                 )
                 
@@ -457,7 +489,7 @@ class GitHubRepository(private val context: Context) {
                     title = pr.title,
                     content = (pr.body ?: "No description provided.") + "\n\n[GitHub Pull Request #${pr.number}](${pr.html_url})",
                     workspaceId = workspaceId,
-                    memberEmails = listOf(userEmail),
+                    memberEmails = workspaceMemberEmails,
                     timestamp = System.currentTimeMillis(),
                     dueDateMs = createdDateMs
                 )

@@ -137,6 +137,9 @@ interface WorkspaceMemberDao {
     @Query("SELECT * FROM workspace_members WHERE workspaceId = :workspaceId ORDER BY timestamp ASC")
     fun getMembersForWorkspace(workspaceId: String): Flow<List<WorkspaceMemberEntity>>
 
+    @Query("SELECT * FROM workspace_members WHERE workspaceId = :workspaceId ORDER BY timestamp ASC")
+    suspend fun getMembersForWorkspaceSync(workspaceId: String): List<WorkspaceMemberEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMember(member: WorkspaceMemberEntity)
 

@@ -33,7 +33,7 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
     val workspaces by viewModel.workspaces.collectAsStateWithLifecycle()
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val notes by viewModel.notes.collectAsStateWithLifecycle()
-    val members by viewModel.workspaceMembers.collectAsStateWithLifecycle()
+    val members by viewModel.allWorkspaceMembers.collectAsStateWithLifecycle()
     val currentTier by viewModel.activeSubscriptionTier.collectAsStateWithLifecycle()
     
     var showAddDialog by remember { mutableStateOf(false) }

@@ -275,6 +275,14 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
     private val _selectedWorkspaceId = MutableStateFlow<String?>(null)
     val selectedWorkspaceId: StateFlow<String?> = _selectedWorkspaceId.asStateFlow()
 
+    private val appDb = com.example.data.local.AppDatabase.getDatabase(getApplication())
+
+    val allWorkspaceMembers: StateFlow<List<WorkspaceMemberEntity>> = appDb.workspaceMemberDao().getAllMembers()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allComments: StateFlow<List<CommentEntity>> = appDb.commentDao().getAllComments()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     @kotlinx.coroutines.ExperimentalCoroutinesApi
     val pendingInvitations: StateFlow<List<WorkspaceMemberEntity>> = userEmailFlow
         .flatMapLatest { email -> firestoreTeamRepo.getUserMemberships(email) }
@@ -282,12 +290,20 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val workspaceMembers: StateFlow<List<WorkspaceMemberEntity>> = _selectedWorkspaceId.flatMapLatest { id ->
-        if (id == null) kotlinx.coroutines.flow.flowOf(emptyList()) else firestoreTeamRepo.getMembersForWorkspace(id)
+        if (id == null) {
+            appDb.workspaceMemberDao().getAllMembers()
+        } else {
+            firestoreTeamRepo.getMembersForWorkspace(id)
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @kotlinx.coroutines.ExperimentalCoroutinesApi
     val comments: StateFlow<List<CommentEntity>> = _selectedWorkspaceId.flatMapLatest { id ->
-        if (id == null) kotlinx.coroutines.flow.flowOf(emptyList()) else firestoreTeamRepo.getCommentsForWorkspace(id)
+        if (id == null) {
+            appDb.commentDao().getAllComments()
+        } else {
+            firestoreTeamRepo.getCommentsForWorkspace(id)
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _widgetAddTaskTrigger = MutableStateFlow(false)
@@ -369,6 +385,41 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
                             val updatedRecord = myMemberRecord.copy(avatarUrl = photoUrl)
                             firestoreTeamRepo.addMember(updatedRecord.workspaceId, updatedRecord)
                         }
+                    }
+                }
+            }
+        }
+
+        // Real-time synchronization for blocked users across devices
+        viewModelScope.launch {
+            userEmailFlow.collect { email ->
+                if (email.isNotBlank()) {
+                    try {
+                        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        db.collection("users").document(email)
+                            .collection("blocked_users")
+                            .addSnapshotListener { snap, err ->
+                                if (err != null) return@addSnapshotListener
+                                if (snap != null) {
+                                    val list = snap.documents.mapNotNull { doc ->
+                                        val uEmail = doc.getString("userEmail") ?: return@mapNotNull null
+                                        val uName = doc.getString("userName") ?: "Blocked User"
+                                        val ts = doc.getLong("timestamp") ?: System.currentTimeMillis()
+                                        com.example.data.local.BlockedUserEntity(
+                                            userEmail = uEmail,
+                                            userName = uName,
+                                            blockedAt = ts
+                                        )
+                                    }
+                                    viewModelScope.launch {
+                                        for (b in list) {
+                                            blockedUserDao.blockUser(b)
+                                        }
+                                    }
+                                }
+                            }
+                    } catch (e: Exception) {
+                        android.util.Log.e("AppViewModels", "Failed to sync blocked users listener", e)
                     }
                 }
             }
@@ -718,6 +769,17 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun removeWorkspaceMember(member: WorkspaceMemberEntity) {
+        if (member.role == "Owner") {
+            uiMessage.value = "The workspace owner cannot be removed."
+            return
+        }
+        val currentEmail = FirebaseAuth.getInstance().currentUser?.email ?: ""
+        val currentMember = workspaceMembers.value.find { it.email == currentEmail }
+        val isOwnerOrAdmin = currentMember?.role == "Owner" || currentMember?.role == "Admin"
+        if (!isOwnerOrAdmin && currentEmail.isNotBlank()) {
+            uiMessage.value = "Only workspace owners and admins can remove members."
+            return
+        }
         viewModelScope.launch {
             try {
                 // 1. Remove member record
@@ -1041,13 +1103,28 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
 
     fun blockUser(email: String, name: String) {
         if (email.isBlank()) return
+        val entity = com.example.data.local.BlockedUserEntity(
+            userEmail = email,
+            userName = name
+        )
         viewModelScope.launch {
-            blockedUserDao.blockUser(
-                com.example.data.local.BlockedUserEntity(
-                    userEmail = email,
-                    userName = name
-                )
-            )
+            blockedUserDao.blockUser(entity)
+            val currentEmail = FirebaseAuth.getInstance().currentUser?.email ?: return@launch
+            try {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val docId = email.replace("/", "_").replace(".", "_")
+                db.collection("users").document(currentEmail)
+                    .collection("blocked_users").document(docId)
+                    .set(
+                        mapOf(
+                            "userEmail" to email,
+                            "userName" to name,
+                            "timestamp" to System.currentTimeMillis()
+                        )
+                    )
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to sync blocked user to Firestore", e)
+            }
         }
     }
 
@@ -1055,6 +1132,16 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         if (email.isBlank()) return
         viewModelScope.launch {
             blockedUserDao.unblockUser(email)
+            val currentEmail = FirebaseAuth.getInstance().currentUser?.email ?: return@launch
+            try {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val docId = email.replace("/", "_").replace(".", "_")
+                db.collection("users").document(currentEmail)
+                    .collection("blocked_users").document(docId)
+                    .delete()
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to delete blocked user from Firestore", e)
+            }
         }
     }
 

@@ -157,13 +157,28 @@ class GitHubViewModel(application: Application) : AndroidViewModel(application) 
             _fetchingError.value = null
             try {
                 val token = repository.getToken() ?: throw Exception("GitHub token is missing")
-                val response = GitHubClient.api.getUserRepos("Bearer $token")
-                if (response.isSuccessful) {
-                    _availableRepos.value = response.body() ?: emptyList()
-                } else {
-                    val errText = response.errorBody()?.string() ?: "Failed to fetch repositories"
-                    _fetchingError.value = errText
+                val allRepos = mutableListOf<GitHubRepo>()
+                var page = 1
+                var hasMore = true
+                while (hasMore && page <= 10) {
+                    val response = GitHubClient.api.getUserRepos("Bearer $token", perPage = 100, page = page)
+                    if (response.isSuccessful) {
+                        val repos = response.body() ?: emptyList()
+                        allRepos.addAll(repos)
+                        if (repos.size < 100) {
+                            hasMore = false
+                        } else {
+                            page++
+                        }
+                    } else {
+                        if (page == 1) {
+                            val errText = response.errorBody()?.string() ?: "Failed to fetch repositories"
+                            _fetchingError.value = errText
+                        }
+                        hasMore = false
+                    }
                 }
+                _availableRepos.value = allRepos
             } catch (e: Exception) {
                 e.printStackTrace()
                 _fetchingError.value = e.message ?: "Network error"

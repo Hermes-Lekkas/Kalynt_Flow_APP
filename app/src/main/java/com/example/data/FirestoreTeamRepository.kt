@@ -198,13 +198,16 @@ class FirestoreTeamRepository(context: Context? = null) {
                                     timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
                                 )
                             }
-                            trySend(list)
-                            if (roomDb != null && list.isNotEmpty()) {
+                            if (roomDb != null) {
                                 scope.launch {
                                     try {
-                                        roomDb.workspaceMemberDao().insertMembers(list)
+                                        if (list.isNotEmpty()) {
+                                            roomDb.workspaceMemberDao().insertMembers(list)
+                                        }
                                     } catch (e: Exception) {}
                                 }
+                            } else {
+                                trySend(list)
                             }
                         }
                     }

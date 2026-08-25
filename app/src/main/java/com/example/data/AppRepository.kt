@@ -57,14 +57,12 @@ class AppRepository(private val context: Context) {
                         .addSnapshotListener { snap, err ->
                             if (snap != null && err == null) {
                                 val list = snap.toObjects(WorkspaceEntity::class.java)
-                                if (list.isNotEmpty()) {
-                                    repoScope.launch {
-                                        try {
-                                            roomDb.workspaceDao().syncAllWorkspaces(list)
-                                            KalyntFlowQuickWidgetProvider.updateAllWidgets(context)
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                        }
+                                repoScope.launch {
+                                    try {
+                                        roomDb.workspaceDao().syncAllWorkspaces(list)
+                                        KalyntFlowQuickWidgetProvider.updateAllWidgets(context)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
                                     }
                                 }
                             }
@@ -75,14 +73,12 @@ class AppRepository(private val context: Context) {
                         .addSnapshotListener { snap, err ->
                             if (snap != null && err == null) {
                                 val list = snap.toObjects(TaskEntity::class.java)
-                                if (list.isNotEmpty()) {
-                                    repoScope.launch {
-                                        try {
-                                            roomDb.taskDao().syncAllTasks(list)
-                                            KalyntFlowTasksWidgetProvider.updateAllWidgets(context)
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                        }
+                                repoScope.launch {
+                                    try {
+                                        roomDb.taskDao().syncAllTasks(list)
+                                        KalyntFlowTasksWidgetProvider.updateAllWidgets(context)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
                                     }
                                 }
                             }
@@ -93,13 +89,11 @@ class AppRepository(private val context: Context) {
                         .addSnapshotListener { snap, err ->
                             if (snap != null && err == null) {
                                 val list = snap.toObjects(NoteEntity::class.java)
-                                if (list.isNotEmpty()) {
-                                    repoScope.launch {
-                                        try {
-                                            roomDb.noteDao().syncAllNotes(list)
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                        }
+                                repoScope.launch {
+                                    try {
+                                        roomDb.noteDao().syncAllNotes(list)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
                                     }
                                 }
                             }
@@ -195,7 +189,37 @@ class AppRepository(private val context: Context) {
                     db.collection("tasks").document(t2.id).set(t2)
                     db.collection("tasks").document(t3.id).set(t3)
                     db.collection("notes").document(n1.id).set(n1)
-                } catch (e: Exception) {}
+
+                    val ownerData = mapOf(
+                        "id" to ownerMember.id,
+                        "workspaceId" to ownerMember.workspaceId,
+                        "name" to ownerMember.name,
+                        "email" to ownerMember.email,
+                        "role" to ownerMember.role,
+                        "status" to ownerMember.status,
+                        "avatarColorHex" to ownerMember.avatarColorHex,
+                        "avatarUrl" to ownerMember.avatarUrl,
+                        "timestamp" to ownerMember.timestamp
+                    )
+                    db.collection("workspaces").document(defaultWs.id).collection("members").document(ownerMember.id).set(ownerData)
+                    db.collection("memberships").document(ownerMember.id).set(ownerData)
+
+                    val devData = mapOf(
+                        "id" to devMember.id,
+                        "workspaceId" to devMember.workspaceId,
+                        "name" to devMember.name,
+                        "email" to devMember.email,
+                        "role" to devMember.role,
+                        "status" to devMember.status,
+                        "avatarColorHex" to devMember.avatarColorHex,
+                        "avatarUrl" to devMember.avatarUrl,
+                        "timestamp" to devMember.timestamp
+                    )
+                    db.collection("workspaces").document(devWs.id).collection("members").document(devMember.id).set(devData)
+                    db.collection("memberships").document(devMember.id).set(devData)
+                } catch (e: Exception) {
+                    android.util.Log.e("AppRepository", "Failed to populate starter data to Firestore", e)
+                }
             }
             KalyntFlowTasksWidgetProvider.updateAllWidgets(context)
             KalyntFlowQuickWidgetProvider.updateAllWidgets(context)
@@ -208,21 +232,15 @@ class AppRepository(private val context: Context) {
         val ws = WorkspaceEntity(name = name, colorHex = colorHex, iconName = iconName, memberEmails = listOf(userEmail))
         try {
             roomDb.workspaceDao().insertWorkspace(ws)
-            val ownerMember = WorkspaceMemberEntity(
-                workspaceId = ws.id,
-                name = auth.currentUser?.displayName ?: "Project Owner",
-                email = userEmail,
-                role = "Owner",
-                status = "Active",
-                avatarUrl = auth.currentUser?.photoUrl?.toString() ?: ""
-            )
-            roomDb.workspaceMemberDao().insertMember(ownerMember)
         } catch (e: Exception) {
             e.printStackTrace()
         }
         try {
             db.collection("workspaces").document(ws.id).set(ws).await()
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("AppRepository", "Failed to write workspace to Firestore", e)
+            throw e
+        }
         KalyntFlowQuickWidgetProvider.updateAllWidgets(context)
         return ws
     }
@@ -244,18 +262,7 @@ class AppRepository(private val context: Context) {
 
     suspend fun deleteWorkspace(workspace: WorkspaceEntity) {
         val wsId = workspace.id
-        // 1. Delete locally from Room DB
-        try {
-            roomDb.workspaceDao().deleteWorkspace(workspace)
-            roomDb.workspaceMemberDao().deleteMembersForWorkspace(wsId)
-            roomDb.taskDao().deleteTasksForWorkspace(wsId)
-            roomDb.noteDao().deleteNotesForWorkspace(wsId)
-            roomDb.commentDao().deleteCommentsForWorkspace(wsId)
-        } catch (e: Exception) {
-            android.util.Log.e("AppRepository", "Error deleting workspace entities from Room DB", e)
-        }
-
-        // 2. Cascade delete from Firestore
+        // 1. Cascade delete from Firestore FIRST
         try {
             // Delete all tasks belonging to workspace
             val tasksSnap = db.collection("tasks").whereEqualTo("workspaceId", wsId).get().await()
@@ -266,11 +273,7 @@ class AppRepository(private val context: Context) {
                 }
                 batch.commit().await()
             }
-        } catch (e: Exception) {
-            android.util.Log.e("AppRepository", "Failed to delete workspace tasks from Firestore", e)
-        }
 
-        try {
             // Delete all notes belonging to workspace
             val notesSnap = db.collection("notes").whereEqualTo("workspaceId", wsId).get().await()
             if (!notesSnap.isEmpty) {
@@ -280,11 +283,7 @@ class AppRepository(private val context: Context) {
                 }
                 batch.commit().await()
             }
-        } catch (e: Exception) {
-            android.util.Log.e("AppRepository", "Failed to delete workspace notes from Firestore", e)
-        }
 
-        try {
             // Delete all workspace_members docs
             val membersSnap = db.collection("workspace_members").whereEqualTo("workspaceId", wsId).get().await()
             if (!membersSnap.isEmpty) {
@@ -294,11 +293,7 @@ class AppRepository(private val context: Context) {
                 }
                 batch.commit().await()
             }
-        } catch (e: Exception) {
-            android.util.Log.e("AppRepository", "Failed to delete workspace_members from Firestore", e)
-        }
 
-        try {
             // Delete all memberships docs
             val membershipsSnap = db.collection("memberships").whereEqualTo("workspaceId", wsId).get().await()
             if (!membershipsSnap.isEmpty) {
@@ -308,11 +303,7 @@ class AppRepository(private val context: Context) {
                 }
                 batch.commit().await()
             }
-        } catch (e: Exception) {
-            android.util.Log.e("AppRepository", "Failed to delete memberships from Firestore", e)
-        }
 
-        try {
             // Delete subcollections: comments, members, typing under workspaces/{id}
             val subcollections = listOf("comments", "members", "typing")
             for (sub in subcollections) {
@@ -325,16 +316,23 @@ class AppRepository(private val context: Context) {
                     batch.commit().await()
                 }
             }
-        } catch (e: Exception) {
-            android.util.Log.e("AppRepository", "Failed to clean subcollections of workspace $wsId", e)
-        }
 
-        try {
             // Delete workspace document itself
             db.collection("workspaces").document(wsId).delete().await()
         } catch (e: Exception) {
-            android.util.Log.e("AppRepository", "Failed to delete workspace doc from Firestore", e)
+            android.util.Log.e("AppRepository", "Failed to delete workspace from Firestore", e)
             throw e
+        }
+
+        // 2. Delete locally from Room DB only after Firestore deletion succeeded
+        try {
+            roomDb.workspaceDao().deleteWorkspace(workspace)
+            roomDb.workspaceMemberDao().deleteMembersForWorkspace(wsId)
+            roomDb.taskDao().deleteTasksForWorkspace(wsId)
+            roomDb.noteDao().deleteNotesForWorkspace(wsId)
+            roomDb.commentDao().deleteCommentsForWorkspace(wsId)
+        } catch (e: Exception) {
+            android.util.Log.e("AppRepository", "Error deleting workspace entities from Room DB", e)
         }
 
         KalyntFlowQuickWidgetProvider.updateAllWidgets(context)

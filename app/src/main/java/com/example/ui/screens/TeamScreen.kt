@@ -103,6 +103,10 @@ fun TeamScreen(
         firebaseUser == null || firebaseUser.isAnonymous || currentAuthorEmail.contains("guest") || currentAuthorEmail.contains("kalyntflow.app")
     }
 
+    val currentUserMembership = remember(workspaceMembers, currentAuthorEmail) {
+        workspaceMembers.find { it.email == currentAuthorEmail }
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
     
@@ -237,7 +241,6 @@ fun TeamScreen(
             }
 
             // 2. High-End Workspace Selector Stream
-            val currentUserMembership = workspaceMembers.find { it.email == currentAuthorEmail }
             if (currentUserMembership?.status == "Pending" && activeWorkspace != null) {
                 Card(
                     shape = RoundedCornerShape(12.dp),
@@ -640,19 +643,23 @@ fun TeamScreen(
                                                     )
                                                 }
                                             }
-                                            IconButton(
-                                                onClick = {
-                                                    viewModel.removeWorkspaceMember(member)
-                                                    toastMessage = "${member.name} removed from workspace"
-                                                },
-                                                modifier = Modifier.size(32.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.DeleteOutline, 
-                                                    contentDescription = "Remove Member", 
-                                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f), 
-                                                    modifier = Modifier.size(18.dp)
-                                                )
+                                            val isCurrentUserOwnerOrAdmin = currentUserMembership?.role == "Owner" || currentUserMembership?.role == "Admin"
+                                            val canRemove = member.role != "Owner" && (isCurrentUserOwnerOrAdmin || member.email == currentAuthorEmail)
+                                            if (canRemove) {
+                                                IconButton(
+                                                    onClick = {
+                                                        viewModel.removeWorkspaceMember(member)
+                                                        toastMessage = "${member.name} removed from workspace"
+                                                    },
+                                                    modifier = Modifier.size(32.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.DeleteOutline, 
+                                                        contentDescription = "Remove Member", 
+                                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f), 
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
