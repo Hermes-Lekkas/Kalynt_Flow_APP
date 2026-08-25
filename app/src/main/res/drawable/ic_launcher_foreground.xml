@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@drawable/kalynt_flow_icon" />
+    <item
+        android:width="72dp"
+        android:height="72dp"
+        android:drawable="@drawable/kalynt_flow_main_icon"
+        android:gravity="center" />
 </layer-list>

@@ -27,7 +27,6 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 
-@SuppressLint("InvalidFragmentVersionForActivityResult")
 class MainActivity : ComponentActivity() {
   private lateinit var authViewModel: AuthViewModel
   private val currentIntentFlow = MutableStateFlow<Intent?>(null)
@@ -44,15 +43,6 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     currentIntentFlow.value = intent
-    
-    try {
-      FirebaseApp.initializeApp(this)
-      FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
-        DebugAppCheckProviderFactory.getInstance()
-      )
-    } catch (e: Exception) {
-      // Handle missing or invalid firebase app gracefully
-    }
     
     // Proactively initialize notification channels on start
     NotificationHelper.createNotificationChannels(this)

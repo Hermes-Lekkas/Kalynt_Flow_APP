@@ -85,12 +85,14 @@ object BackgroundSyncManager {
 
     private fun attachFirestoreListeners(context: Context, myEmail: String) {
         detachFirestoreListeners()
+        if (myEmail.isBlank()) return
 
         try {
             val db = FirebaseFirestore.getInstance()
 
-            // Observe all workspaces to dynamically attach comment listeners
+            // Observe only the user's workspaces to dynamically attach comment listeners
             workspacesListener = db.collection("workspaces")
+                .whereArrayContains("memberEmails", myEmail)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null || snapshot == null) {
                         Log.e(TAG, "Error observing workspaces: ${error?.message}")
@@ -189,11 +191,14 @@ object BackgroundSyncManager {
             Log.e(TAG, "Error rescheduling tasks during sync", e)
         }
 
-        // 2. If user is logged in, query Firestore for recent comments across workspaces
+        // 2. If user is logged in, query Firestore for recent comments across user workspaces
         if (myEmail.isNotBlank()) {
             try {
                 val db = FirebaseFirestore.getInstance()
-                val wsSnap = db.collection("workspaces").get().await()
+                val wsSnap = db.collection("workspaces")
+                    .whereArrayContains("memberEmails", myEmail)
+                    .get()
+                    .await()
                 val now = System.currentTimeMillis()
                 val cutoff = now - (6 * 3600 * 1000L) // last 6 hours
 

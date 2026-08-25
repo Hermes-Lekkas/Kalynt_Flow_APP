@@ -901,7 +901,7 @@ fun LinkRepositoryDialog(
                         }
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(filteredRepos) { repo ->
+                            items(filteredRepos, key = { it.id }) { repo ->
                                 val isSelected = selectedRepo?.id == repo.id
                                 Row(
                                     modifier = Modifier

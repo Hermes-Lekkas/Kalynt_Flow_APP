@@ -1,10 +1,7 @@
 package com.example.data
 
 import android.content.Context
-import com.example.data.local.AppDatabase
-import com.example.data.local.NoteEntity
-import com.example.data.local.TaskEntity
-import com.example.data.local.WorkspaceEntity
+import com.example.data.local.*
 import com.example.widget.KalyntFlowQuickWidgetProvider
 import com.example.widget.KalyntFlowTasksWidgetProvider
 import com.google.firebase.auth.FirebaseAuth
@@ -34,134 +31,91 @@ class AppRepository(private val context: Context) {
             }
         }
 
-    val allWorkspaces: Flow<List<WorkspaceEntity>> = callbackFlow {
-        var listenerRegistration: ListenerRegistration? = null
-        val authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            listenerRegistration?.remove()
-            val user = firebaseAuth.currentUser
-            val email = if (user != null) {
-                if (!user.email.isNullOrBlank()) user.email else "guest_${user.uid.take(8)}@kalyntflow.app"
-            } else null
-            if (email != null) {
-                listenerRegistration = db.collection("workspaces")
-                    .whereArrayContains("memberEmails", email)
-                    .addSnapshotListener { snap, err ->
-                        if (err != null) {
-                            trySend(emptyList())
-                            return@addSnapshotListener
-                        }
-                        if (snap != null) {
-                            val list = snap.toObjects(WorkspaceEntity::class.java)
-                            trySend(list)
-                            repoScope.launch {
-                                try {
-                                    roomDb.workspaceDao().syncAllWorkspaces(list)
-                                    KalyntFlowQuickWidgetProvider.updateAllWidgets(context)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
-                        }
-                    }
-            } else {
-                trySend(emptyList())
-            }
-        }
-        auth.addAuthStateListener(authListener)
-        awaitClose { 
-            auth.removeAuthStateListener(authListener)
-            listenerRegistration?.remove() 
-        }
-    }
+    val allWorkspaces: Flow<List<WorkspaceEntity>> = roomDb.workspaceDao().getAllWorkspaces()
+    val allTasks: Flow<List<TaskEntity>> = roomDb.taskDao().getAllTasks()
+    val allNotes: Flow<List<NoteEntity>> = roomDb.noteDao().getAllNotes()
 
-    val allTasks: Flow<List<TaskEntity>> = callbackFlow {
-        var listenerRegistration: ListenerRegistration? = null
-        val authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            listenerRegistration?.remove()
-            val user = firebaseAuth.currentUser
-            val email = if (user != null) {
-                if (!user.email.isNullOrBlank()) user.email else "guest_${user.uid.take(8)}@kalyntflow.app"
-            } else null
-            if (email != null) {
-                listenerRegistration = db.collection("tasks")
-                    .whereArrayContains("memberEmails", email)
-                    .addSnapshotListener { snap, err ->
-                        if (err != null) {
-                            trySend(emptyList())
-                            return@addSnapshotListener
-                        }
-                        if (snap != null) {
-                            val list = snap.toObjects(TaskEntity::class.java)
-                            trySend(list)
-                            repoScope.launch {
-                                try {
-                                    roomDb.taskDao().syncAllTasks(list)
-                                    KalyntFlowTasksWidgetProvider.updateAllWidgets(context)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
-                        }
-                    }
-            } else {
-                trySend(emptyList())
-            }
-        }
-        auth.addAuthStateListener(authListener)
-        awaitClose { 
-            auth.removeAuthStateListener(authListener)
-            listenerRegistration?.remove() 
-        }
-    }
+    init {
+        var workspaceListener: ListenerRegistration? = null
+        var taskListener: ListenerRegistration? = null
+        var noteListener: ListenerRegistration? = null
 
-    val allNotes: Flow<List<NoteEntity>> = callbackFlow {
-        var listenerRegistration: ListenerRegistration? = null
-        val authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            listenerRegistration?.remove()
+        auth.addAuthStateListener { firebaseAuth ->
+            workspaceListener?.remove()
+            taskListener?.remove()
+            noteListener?.remove()
+
             val user = firebaseAuth.currentUser
             val email = if (user != null) {
                 if (!user.email.isNullOrBlank()) user.email else "guest_${user.uid.take(8)}@kalyntflow.app"
             } else null
+
             if (email != null) {
-                listenerRegistration = db.collection("notes")
-                    .whereArrayContains("memberEmails", email)
-                    .addSnapshotListener { snap, err ->
-                        if (err != null) {
-                            trySend(emptyList())
-                            return@addSnapshotListener
-                        }
-                        if (snap != null) {
-                            val list = snap.toObjects(NoteEntity::class.java)
-                            trySend(list)
-                            repoScope.launch {
-                                try {
-                                    roomDb.noteDao().syncAllNotes(list)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
+                try {
+                    workspaceListener = db.collection("workspaces")
+                        .whereArrayContains("memberEmails", email)
+                        .addSnapshotListener { snap, err ->
+                            if (snap != null && err == null) {
+                                val list = snap.toObjects(WorkspaceEntity::class.java)
+                                if (list.isNotEmpty()) {
+                                    repoScope.launch {
+                                        try {
+                                            roomDb.workspaceDao().syncAllWorkspaces(list)
+                                            KalyntFlowQuickWidgetProvider.updateAllWidgets(context)
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-            } else {
-                trySend(emptyList())
+
+                    taskListener = db.collection("tasks")
+                        .whereArrayContains("memberEmails", email)
+                        .addSnapshotListener { snap, err ->
+                            if (snap != null && err == null) {
+                                val list = snap.toObjects(TaskEntity::class.java)
+                                if (list.isNotEmpty()) {
+                                    repoScope.launch {
+                                        try {
+                                            roomDb.taskDao().syncAllTasks(list)
+                                            KalyntFlowTasksWidgetProvider.updateAllWidgets(context)
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    noteListener = db.collection("notes")
+                        .whereArrayContains("memberEmails", email)
+                        .addSnapshotListener { snap, err ->
+                            if (snap != null && err == null) {
+                                val list = snap.toObjects(NoteEntity::class.java)
+                                if (list.isNotEmpty()) {
+                                    repoScope.launch {
+                                        try {
+                                            roomDb.noteDao().syncAllNotes(list)
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
-        }
-        auth.addAuthStateListener(authListener)
-        awaitClose { 
-            auth.removeAuthStateListener(authListener)
-            listenerRegistration?.remove() 
         }
     }
 
     suspend fun initializeDefaultDataIfEmpty() {
         try {
-            val email = userEmail
-            val snap = db.collection("workspaces")
-                .whereArrayContains("memberEmails", email)
-                .limit(1)
-                .get()
-                .await()
-            if (snap.isEmpty) {
+            val localWorkspaces = roomDb.workspaceDao().getAllWorkspacesSync()
+            if (localWorkspaces.isEmpty()) {
+                val email = userEmail
                 val defaultWs = WorkspaceEntity(
                     name = "RESEARCH & STRATEGY",
                     colorHex = "#1D1D1B",
@@ -174,10 +128,27 @@ class AppRepository(private val context: Context) {
                     iconName = "Code",
                     memberEmails = listOf(email)
                 )
-                db.collection("workspaces").document(defaultWs.id).set(defaultWs).await()
-                db.collection("workspaces").document(devWs.id).set(devWs).await()
                 roomDb.workspaceDao().insertWorkspace(defaultWs)
                 roomDb.workspaceDao().insertWorkspace(devWs)
+
+                val ownerMember = WorkspaceMemberEntity(
+                    workspaceId = defaultWs.id,
+                    name = auth.currentUser?.displayName ?: "Project Owner",
+                    email = email,
+                    role = "Owner",
+                    status = "Active"
+                )
+                val devMember = WorkspaceMemberEntity(
+                    workspaceId = devWs.id,
+                    name = auth.currentUser?.displayName ?: "Project Owner",
+                    email = email,
+                    role = "Owner",
+                    status = "Active"
+                )
+                try {
+                    roomDb.workspaceMemberDao().insertMember(ownerMember)
+                    roomDb.workspaceMemberDao().insertMember(devMember)
+                } catch (e: Exception) {}
 
                 val t1 = TaskEntity(
                     title = "Review product roadmap & sprint deliverables",
@@ -204,9 +175,6 @@ class AppRepository(private val context: Context) {
                     memberEmails = listOf(email)
                 )
 
-                db.collection("tasks").document(t1.id).set(t1).await()
-                db.collection("tasks").document(t2.id).set(t2).await()
-                db.collection("tasks").document(t3.id).set(t3).await()
                 roomDb.taskDao().insertTask(t1)
                 roomDb.taskDao().insertTask(t2)
                 roomDb.taskDao().insertTask(t3)
@@ -218,8 +186,16 @@ class AppRepository(private val context: Context) {
                     memberEmails = listOf(email),
                     dueDateMs = System.currentTimeMillis()
                 )
-                db.collection("notes").document(n1.id).set(n1).await()
                 roomDb.noteDao().insertNote(n1)
+
+                try {
+                    db.collection("workspaces").document(defaultWs.id).set(defaultWs)
+                    db.collection("workspaces").document(devWs.id).set(devWs)
+                    db.collection("tasks").document(t1.id).set(t1)
+                    db.collection("tasks").document(t2.id).set(t2)
+                    db.collection("tasks").document(t3.id).set(t3)
+                    db.collection("notes").document(n1.id).set(n1)
+                } catch (e: Exception) {}
             }
             KalyntFlowTasksWidgetProvider.updateAllWidgets(context)
             KalyntFlowQuickWidgetProvider.updateAllWidgets(context)
@@ -232,7 +208,18 @@ class AppRepository(private val context: Context) {
         val ws = WorkspaceEntity(name = name, colorHex = colorHex, iconName = iconName, memberEmails = listOf(userEmail))
         try {
             roomDb.workspaceDao().insertWorkspace(ws)
-        } catch (e: Exception) {}
+            val ownerMember = WorkspaceMemberEntity(
+                workspaceId = ws.id,
+                name = auth.currentUser?.displayName ?: "Project Owner",
+                email = userEmail,
+                role = "Owner",
+                status = "Active",
+                avatarUrl = auth.currentUser?.photoUrl?.toString() ?: ""
+            )
+            roomDb.workspaceMemberDao().insertMember(ownerMember)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         try {
             db.collection("workspaces").document(ws.id).set(ws).await()
         } catch (e: Exception) {}
@@ -253,6 +240,7 @@ class AppRepository(private val context: Context) {
     suspend fun deleteWorkspace(workspace: WorkspaceEntity) {
         try {
             roomDb.workspaceDao().deleteWorkspace(workspace)
+            roomDb.workspaceMemberDao().deleteMembersForWorkspace(workspace.id)
         } catch (e: Exception) {}
         try {
             db.collection("workspaces").document(workspace.id).delete().await()

@@ -381,7 +381,7 @@ fun TasksScreen(viewModel: MainAppViewModel) {
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                items(filterStates) { state ->
+                                items(filterStates, key = { it }) { state ->
                                     FilterChip(
                                         selected = statusFilter == state,
                                         onClick = { statusFilter = state },
@@ -792,7 +792,7 @@ fun TasksScreen(viewModel: MainAppViewModel) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(filterStates) { state ->
+                            items(filterStates, key = { it }) { state ->
                                 FilterChip(
                                     selected = statusFilter == state,
                                     onClick = { statusFilter = state },

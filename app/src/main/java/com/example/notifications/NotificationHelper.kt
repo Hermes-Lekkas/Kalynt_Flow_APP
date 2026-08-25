@@ -116,7 +116,7 @@ object NotificationHelper {
     }
 
     private fun getAppLargeIcon(context: Context) = try {
-        BitmapFactory.decodeResource(context.resources, R.drawable.resized_kalynt_flow_icon)
+        BitmapFactory.decodeResource(context.resources, R.drawable.kalynt_flow_main_icon)
     } catch (e: Exception) {
         null
     }

@@ -81,7 +81,7 @@ fun AuthScreen(authViewModel: AuthViewModel) {
 
             // App Logo Badge
             Image(
-                painter = painterResource(id = R.drawable.kalynt_flow_icon),
+                painter = painterResource(id = R.drawable.kalynt_flow_main_icon),
                 contentDescription = "Kalynt Flow Logo",
                 modifier = Modifier
                     .size(110.dp)
@@ -269,9 +269,9 @@ fun AuthScreen(authViewModel: AuthViewModel) {
                         modifier = Modifier
                             .clickable {
                                 try {
-                                    uriHandler.openUri("https://hermes-lekkas.github.io/Kalynt-Flow/")
+                                    uriHandler.openUri("https://hermes-lekkas.github.io/Kalynt-Flow/terms-of-service.html")
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Opening legal policy...", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Opening Terms of Service...", Toast.LENGTH_SHORT).show()
                                 }
                             }
                             .testTag("auth_terms_of_service_link")
@@ -291,9 +291,9 @@ fun AuthScreen(authViewModel: AuthViewModel) {
                         modifier = Modifier
                             .clickable {
                                 try {
-                                    uriHandler.openUri("https://hermes-lekkas.github.io/Kalynt-Flow/")
+                                    uriHandler.openUri("https://hermes-lekkas.github.io/Kalynt-Flow/privacy-policy.html")
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Opening legal policy...", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Opening Privacy Policy...", Toast.LENGTH_SHORT).show()
                                 }
                             }
                             .testTag("auth_privacy_policy_link")

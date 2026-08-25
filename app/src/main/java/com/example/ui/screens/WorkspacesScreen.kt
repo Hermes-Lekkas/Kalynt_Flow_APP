@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -191,10 +192,54 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
     if (showProUpgradeDialog) {
         AlertDialog(
             onDismissRequest = { showProUpgradeDialog = false },
-            icon = { Icon(Icons.Default.Star, null, tint = Color(0xFFFFB300)) },
-            title = { Text("Pro Plan Required", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) },
+            icon = { Icon(Icons.Default.Star, null, tint = Color(0xFFFFB300), modifier = Modifier.size(32.dp)) },
+            title = { 
+                Text(
+                    "Unlock Kalynt Flow Pro", 
+                    style = MaterialTheme.typography.titleLarge, 
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                ) 
+            },
             text = {
-                Text("Custom workspace icons, unlimited team members, and shared workspaces are premium features available on Kalynt Flow Pro.", style = MaterialTheme.typography.bodySmall)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Upgrade for €6.99 / month to unlock all Pro capabilities:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    val proList = listOf(
+                        "More than 3 workspaces (unlimited)",
+                        "AI Chat & Copilot assistant",
+                        "Full-time collaboration & unlimited invites (> 4)",
+                        "All custom workspace icons",
+                        "Priority 24/7 email support"
+                    )
+                    
+                    proList.forEach { feat ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                feat,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
                 Button(
@@ -202,9 +247,9 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
                         showProUpgradeDialog = false
                         navController.navigate("pricing")
                     },
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Upgrade to Pro")
+                    Text("Upgrade for €6.99 / mo", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -213,7 +258,7 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
                 }
             },
             containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(20.dp)
         )
     }
 }
@@ -480,7 +525,7 @@ fun AddWorkspaceDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(AVAILABLE_WORKSPACE_ICONS) { (iconLabel, iconVector) ->
+                    items(AVAILABLE_WORKSPACE_ICONS, key = { it.first }) { (iconLabel, iconVector) ->
                         val isSelected = selectedIconName == iconLabel
                         val isDefault = iconLabel == "Folder"
                         val isLocked = currentTier == "FREE" && !isDefault
@@ -554,7 +599,7 @@ fun IconCustomizerDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp)
                 ) {
-                    items(AVAILABLE_WORKSPACE_ICONS) { (iconLabel, iconVector) ->
+                    items(AVAILABLE_WORKSPACE_ICONS, key = { it.first }) { (iconLabel, iconVector) ->
                         val isSelected = selectedIconName == iconLabel
                         val isDefault = iconLabel == "Folder"
                         val isLocked = currentTier == "FREE" && !isDefault

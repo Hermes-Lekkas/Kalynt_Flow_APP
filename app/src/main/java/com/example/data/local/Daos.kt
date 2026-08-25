@@ -134,8 +134,17 @@ interface WorkspaceMemberDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMember(member: WorkspaceMemberEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMembers(members: List<WorkspaceMemberEntity>)
+
     @Delete
     suspend fun deleteMember(member: WorkspaceMemberEntity)
+
+    @Query("DELETE FROM workspace_members WHERE id = :memberId")
+    suspend fun deleteMemberById(memberId: String)
+
+    @Query("DELETE FROM workspace_members WHERE workspaceId = :workspaceId")
+    suspend fun deleteMembersForWorkspace(workspaceId: String)
 }
 
 @Dao

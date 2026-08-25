@@ -68,7 +68,7 @@ class BillingManager(
     // -------------------------------------------------------------------------
 
     /** Currently active subscription tier: "FREE", "PRO_MONTHLY", "PRO_ANNUAL" */
-    private val _activeTier = MutableStateFlow("PRO_ANNUAL")
+    private val _activeTier = MutableStateFlow("FREE")
     val activeTier: StateFlow<String> = _activeTier.asStateFlow()
 
     /** Real [ProductDetails] keyed by SKU, so the UI can display Play Store prices */
@@ -270,7 +270,7 @@ class BillingManager(
     // -------------------------------------------------------------------------
 
     private suspend fun handlePurchaseList(purchases: List<Purchase>) {
-        var highestTier = "PRO_ANNUAL"
+        var highestTier = "FREE"
 
         for (purchase in purchases) {
             if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) continue

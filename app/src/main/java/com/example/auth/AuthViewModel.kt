@@ -8,14 +8,14 @@ import androidx.credentials.GetCredentialResponse
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,7 +31,7 @@ sealed class AuthState {
     data class Error(val message: String) : AuthState()
 }
 
-class AuthViewModel(context: Context? = null) {
+class AuthViewModel(context: Context? = null) : ViewModel() {
     private var auth: FirebaseAuth? = null
     
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
@@ -54,7 +54,7 @@ class AuthViewModel(context: Context? = null) {
 
     fun continueAsGuest() {
         _authState.value = AuthState.Loading
-        CoroutineScope(Dispatchers.Main).launch {
+        viewModelScope.launch {
             try {
                 val firebaseAuth = auth
                 if (firebaseAuth != null) {
@@ -80,7 +80,12 @@ class AuthViewModel(context: Context? = null) {
     }
 
     suspend fun signInWithGoogle(context: Context, webClientId: String) {
-        val clientId = webClientId.ifBlank { "1009661461742-tjuv4hbhfo41ficvdur5h2ho8bteu5ai.apps.googleusercontent.com" }
+        val clientId = webClientId.ifBlank {
+            try {
+                val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+                if (resId != 0) context.getString(resId) else ""
+            } catch (e: Exception) { "" }
+        }
         val firebaseAuth = auth
         if (firebaseAuth == null) {
             _authState.value = AuthState.Error("Firebase is not initialized. Make sure google-services.json is configured.")
@@ -132,7 +137,7 @@ class AuthViewModel(context: Context? = null) {
         }
     }
 
-    private fun handleSignInResult(result: GetCredentialResponse) {
+    private suspend fun handleSignInResult(result: GetCredentialResponse) {
         val firebaseAuth = auth ?: return
         val credential = result.credential
         if (credential is androidx.credentials.CustomCredential &&
@@ -141,22 +146,16 @@ class AuthViewModel(context: Context? = null) {
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val idToken = googleIdTokenCredential.idToken
                 val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
-                firebaseAuth.signInWithCredential(firebaseCredential)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            val user = firebaseAuth.currentUser
-                            if (user != null) {
-                                _authState.value = AuthState.Authenticated(user.uid, user.email, user.displayName)
-                            } else {
-                                _authState.value = AuthState.Unauthenticated
-                            }
-                        } else {
-                            _authState.value = AuthState.Error(task.exception?.localizedMessage ?: "Firebase auth failed")
-                        }
-                    }
+                val authResult = firebaseAuth.signInWithCredential(firebaseCredential).await()
+                val user = authResult.user
+                if (user != null) {
+                    _authState.value = AuthState.Authenticated(user.uid, user.email, user.displayName)
+                } else {
+                    _authState.value = AuthState.Unauthenticated
+                }
             } catch (e: Exception) {
                 Log.e("AuthViewModel", "Received an invalid google id token response", e)
-                _authState.value = AuthState.Error("Invalid Google ID token response")
+                _authState.value = AuthState.Error(e.localizedMessage ?: "Google Sign-In failed")
             }
         } else {
             _authState.value = AuthState.Error("Unexpected credential type: ${credential.type}")

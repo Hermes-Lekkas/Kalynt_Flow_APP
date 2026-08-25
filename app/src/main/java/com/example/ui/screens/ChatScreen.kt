@@ -249,7 +249,7 @@ fun ChatScreen(
             onSignInClick = onSignInClick,
             onBackClick = { navController.popBackStack() }
         )
-    } else if (false) { // Make the AI chat companion free for now during development
+    } else if (currentTier == "FREE") {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -282,7 +282,7 @@ fun ChatScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "AI Flow Companion",
+                text = "AI Copilot & Assistant",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
@@ -292,14 +292,14 @@ fun ChatScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Unlock the full power of Gemini AI to automatically summarize tasks, synthesize clean notes, and organize your workspace context in real-time.",
+                text = "AI Chat is a Pro feature. Upgrade to Kalynt Flow Pro to unlock real-time contextual assistance, smart task breakdowns, note summarization, and priority responses.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -308,13 +308,15 @@ fun ChatScreen(
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     val features = listOf(
-                        Icons.Default.WorkspacePremium to "Unlimited Context-Aware AI Chat",
-                        Icons.Default.CheckCircle to "Auto-generate Task Lists & Goal Triggers",
-                        Icons.Default.Edit to "Extract insights & directly save to Notes",
-                        Icons.Default.Folder to "Context parsing across all workspaces"
+                        Icons.Default.AutoAwesome to "Unlimited Context-Aware AI Chat",
+                        Icons.Default.Task to "Auto-generate Tasks & Action Items",
+                        Icons.Default.Edit to "Instant Note Synthesis & Summaries",
+                        Icons.Default.Folder to "More than 3 Workspaces & All Icons",
+                        Icons.Default.People to "Full-time Collaboration (> 4 Invites)",
+                        Icons.Default.Support to "Priority 24/7 Email Support"
                     )
 
                     features.forEach { (icon, text) ->
@@ -339,7 +341,7 @@ fun ChatScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = { navController.navigate("pricing") },
@@ -347,17 +349,17 @@ fun ChatScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(52.dp)
             ) {
                 Text(
-                    text = "Upgrade to Pro Plan",
+                    text = "Upgrade to Pro — €6.99 / month",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             TextButton(onClick = { navController.popBackStack() }) {
                 Text("Go Back", color = MaterialTheme.colorScheme.secondary)
@@ -383,7 +385,7 @@ fun ChatScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.kalynt_flow_icon),
+                        painter = painterResource(id = R.drawable.kalynt_flow_main_icon),
                         contentDescription = "Kalynt Flow Copilot",
                         modifier = Modifier
                             .size(34.dp)
@@ -459,7 +461,7 @@ fun ChatScreen(
                             horizontalArrangement = Arrangement.spacedBy((-8).dp)
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.kalynt_flow_icon),
+                                painter = painterResource(id = R.drawable.kalynt_flow_main_icon),
                                 contentDescription = "Kalynt Flow Copilot",
                                 modifier = Modifier
                                     .size(52.dp)
@@ -505,7 +507,7 @@ fun ChatScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(messages) { msg ->
+                        items(messages, key = { "${it.timestamp}_${it.role}_${it.text.hashCode()}" }) { msg ->
                             ChatBubbleWithActions(
                                 message = msg,
                                 onSaveAsNote = { text -> showNoteConfirmDialog = text },
@@ -656,7 +658,7 @@ fun ChatScreen(
                     if (workspaces.isNotEmpty()) {
                         Text("Associate Workspace:", style = MaterialTheme.typography.labelSmall)
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(workspaces) { ws ->
+                            items(workspaces, key = { it.id }) { ws ->
                                 FilterChip(
                                     selected = selectedWsId == ws.id,
                                     onClick = { selectedWsId = ws.id },
@@ -710,7 +712,7 @@ fun ChatScreen(
                     if (workspaces.isNotEmpty()) {
                         Text("Associate Workspace:", style = MaterialTheme.typography.labelSmall)
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(workspaces) { ws ->
+                            items(workspaces, key = { it.id }) { ws ->
                                 FilterChip(
                                     selected = selectedWsId == ws.id,
                                     onClick = { selectedWsId = ws.id },
@@ -790,7 +792,7 @@ fun ChatScreen(
                     )
                 } else {
                     LazyColumn(modifier = Modifier.padding(bottom = 32.dp)) {
-                        items(allSessions) { session ->
+                        items(allSessions, key = { it.id }) { session ->
                             val isSelected = session.id == currentSessionId
                             Row(
                                 modifier = Modifier
@@ -946,7 +948,7 @@ fun ChatBubbleWithActions(
     ) {
         if (!isUser) {
             Image(
-                painter = painterResource(id = R.drawable.kalynt_flow_icon),
+                painter = painterResource(id = R.drawable.kalynt_flow_main_icon),
                 contentDescription = "AI Copilot Avatar",
                 modifier = Modifier
                     .padding(top = 4.dp, end = 8.dp)

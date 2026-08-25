@@ -486,13 +486,33 @@ fun TeamScreen(
                         .padding(top = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "CURRENT MEMBERS", 
+                            style = MaterialTheme.typography.labelSmall, 
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        
+                        TextButton(
+                            onClick = {
+                                if (currentTier == "FREE" && workspaceMembers.size >= 4) {
+                                    showProUpgradeDialog = true
+                                } else {
+                                    showInviteDialog = true
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Invite", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    Text(
-                        text = "CURRENT MEMBERS", 
-                        style = MaterialTheme.typography.labelSmall, 
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
 
                     if (workspaceMembers.isEmpty()) {
                         Box(
@@ -711,10 +731,8 @@ fun TeamScreen(
             activeWorkspace = activeWorkspace,
             onDismiss = { showInvitationsDialog = false },
             onInviteClick = {
-                if (currentTier == "FREE" && workspaceMembers.size >= 3) {
+                if (currentTier == "FREE" && workspaceMembers.size >= 4) {
                     showProUpgradeDialog = true
-                } else if (currentTier == "PRO" && workspaceMembers.size >= 30) {
-                    toastMessage = "Pro plan limit reached (30 users)."
                 } else if (activeWorkspace != null) {
                     showInviteDialog = true
                 }
@@ -731,13 +749,13 @@ fun TeamScreen(
                 Icon(
                     imageVector = Icons.Default.Star, 
                     contentDescription = null, 
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = Color(0xFFFFB300),
                     modifier = Modifier.size(36.dp)
                 ) 
             },
             title = { 
                 Text(
-                    text = "Professional Collaboration Required", 
+                    text = "Unlock Kalynt Flow Pro", 
                     style = MaterialTheme.typography.titleLarge, 
                     fontWeight = FontWeight.ExtraBold,
                     textAlign = TextAlign.Center,
@@ -745,12 +763,44 @@ fun TeamScreen(
                 ) 
             },
             text = {
-                Text(
-                    text = "The Free tier limits workspace collaboration to 1 active user. Upgrade to the Pro plan to invite unlimited team collaborators, define granular permission levels (Admin/Editor/Viewer), and access team discussion streams.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.secondary
-                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Full-time collaboration and more than 4 invites per workspace are Pro features. Upgrade for €6.99 / month to unlock all Pro capabilities:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    val proFeatures = listOf(
+                        "More than 3 workspaces (unlimited)",
+                        "AI Chat & Copilot assistant",
+                        "Full-time collaboration & unlimited invites (> 4)",
+                        "All custom workspace icons",
+                        "Priority 24/7 email support"
+                    )
+
+                    proFeatures.forEach { feat ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                feat,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
                 Button(
@@ -765,7 +815,7 @@ fun TeamScreen(
                     ),
                     elevation = ButtonDefaults.buttonElevation(0.dp)
                 ) {
-                    Text("Upgrade Plan", fontWeight = FontWeight.Bold)
+                    Text("Upgrade for €6.99 / mo", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -774,7 +824,7 @@ fun TeamScreen(
                 }
             },
             containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(18.dp)
+            shape = RoundedCornerShape(20.dp)
         )
     }
 

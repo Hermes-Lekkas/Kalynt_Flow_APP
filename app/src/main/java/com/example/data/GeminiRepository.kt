@@ -34,7 +34,7 @@ class GeminiRepository {
 
     // Comprehensive list of top free OpenRouter models to try in sequence
     private val FREE_MODELS = listOf(
-        "google/gemini-2.0-flash-lite-001:free",
+        "google/gemini-2.0-flash-001",
         "google/gemini-2.0-flash-exp:free",
         "meta-llama/llama-3.3-70b-instruct:free",
         "deepseek/deepseek-r1:free",
@@ -224,7 +224,7 @@ class GeminiRepository {
         val geminiKey = BuildConfig.GEMINI_API_KEY
         if (geminiKey.isNotBlank() && geminiKey != "dummy_gemini_api_key") {
             try {
-                val geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$geminiKey"
+                val geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
                 val requestJson = JSONObject().apply {
                     if (systemPrompt.isNotBlank()) {
                         put("systemInstruction", JSONObject().apply {
@@ -246,6 +246,7 @@ class GeminiRepository {
                 val requestBody = requestJson.toString().toRequestBody(mediaType)
                 val request = Request.Builder()
                     .url(geminiUrl)
+                    .header("x-goog-api-key", geminiKey)
                     .post(requestBody)
                     .build()
 
@@ -289,9 +290,13 @@ class GeminiRepository {
         val lastErrors = mutableListOf<String>()
 
         for (modelName in FREE_MODELS) {
-            // Try with standard max_tokens = 800, fallback to 400 if 402 error occurs
+            // Try standard max_tokens = 800, fallback to 400 if 402 error occurs
+            var shouldTryLowerTokens = false
             val maxTokenOptions = listOf(800, 400)
             for (maxTokens in maxTokenOptions) {
+                if (maxTokens == 400 && !shouldTryLowerTokens) {
+                    break
+                }
                 try {
                     val requestBodyJson = JSONObject().apply {
                         put("model", modelName)
@@ -312,38 +317,39 @@ class GeminiRepository {
                         requestBuilder.header("Authorization", "Bearer $apiKey")
                     }
 
-                    client.newCall(requestBuilder.build()).execute().use { response ->
-                        val responseBody = response.body?.string() ?: ""
+                    val response = client.newCall(requestBuilder.build()).execute()
+                    val responseBody = response.body?.string() ?: ""
 
-                        if (!response.isSuccessful) {
-                            val errMsg = "Model $modelName (max_tokens=$maxTokens) returned HTTP ${response.code}: $responseBody"
-                            Log.w("GeminiRepository", "$errMsg - falling back...")
-                            lastErrors.add(errMsg)
-                            
-                            // If 402 (credit/token limit error), try lower max_tokens, else move to next model
-                            if (response.code == 402) {
-                                return@use // try next maxTokens option or next model
-                            } else {
-                                return@use // try next model
-                            }
-                        }
-
-                        val jsonResponse = JSONObject(responseBody)
-                        val choices = jsonResponse.optJSONArray("choices")
-                        val firstChoice = choices?.optJSONObject(0)
-                        val message = firstChoice?.optJSONObject("message")
-                        val text = message?.optString("content")
-
-                        if (!text.isNullOrBlank()) {
-                            Log.i("GeminiRepository", "Successfully received AI response using model: $modelName (max_tokens=$maxTokens)")
-                            return text
+                    if (!response.isSuccessful) {
+                        val errMsg = "Model $modelName (max_tokens=$maxTokens) returned HTTP ${response.code}: $responseBody"
+                        Log.w("GeminiRepository", "$errMsg - falling back...")
+                        lastErrors.add(errMsg)
+                        
+                        // If 402 (credit/token limit error), try lower max_tokens, else move to next model
+                        if (response.code == 402) {
+                            shouldTryLowerTokens = true
+                            continue
                         } else {
-                            Log.w("GeminiRepository", "Model $modelName returned empty text - falling back...")
+                            break
                         }
+                    }
+
+                    val jsonResponse = JSONObject(responseBody)
+                    val choices = jsonResponse.optJSONArray("choices")
+                    val firstChoice = choices?.optJSONObject(0)
+                    val message = firstChoice?.optJSONObject("message")
+                    val text = message?.optString("content")
+
+                    if (!text.isNullOrBlank()) {
+                        Log.i("GeminiRepository", "Successfully received AI response using model: $modelName (max_tokens=$maxTokens)")
+                        return text
+                    } else {
+                        Log.w("GeminiRepository", "Model $modelName returned empty text - falling back...")
                     }
                 } catch (e: Exception) {
                     Log.w("GeminiRepository", "Exception with model $modelName ($maxTokens tokens): ${e.message}", e)
                     lastErrors.add("$modelName exception: ${e.message}")
+                    break
                 }
             }
         }

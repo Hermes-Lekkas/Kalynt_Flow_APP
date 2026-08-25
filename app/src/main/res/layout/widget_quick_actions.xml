@@ -18,7 +18,7 @@
         <ImageView
             android:layout_width="18dp"
             android:layout_height="18dp"
-            android:src="@drawable/kalynt_flow_icon"
+            android:src="@drawable/kalynt_flow_main_icon"
             android:contentDescription="Kalynt Flow" />
 
         <TextView

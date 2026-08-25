@@ -51,33 +51,34 @@ private data class PlanFeature(
 )
 
 private val PLAN_FEATURES = listOf(
-    PlanFeature("Workspaces",            "Up to 3",       "Unlimited",          Icons.Default.Folder),
-    PlanFeature("Members / Workspace",   "Solo only",     "Unlimited",          Icons.Default.Group),
-    PlanFeature("AI Chat Assistant",     "Locked",        "Unlimited queries",  Icons.Default.AutoAwesome),
-    PlanFeature("AI Task Generation",    "Locked",        "Unlimited",          Icons.Default.Task),
-    PlanFeature("Team Collaboration",    "Locked",        "Full access",        Icons.Default.People),
-    PlanFeature("Workspace Invitations", "Locked",        "Unlimited",          Icons.Default.PersonAdd),
-    PlanFeature("Tasks & Notes",         "Basic",         "Advanced + linking", Icons.Default.CheckCircle),
-    PlanFeature("Calendar View",         "Basic",         "Full scheduling",    Icons.Default.DateRange),
-    PlanFeature("Custom Icons",          "Folder only",   "All icons",          Icons.Default.Star),
-    PlanFeature("Priority Support",      "Community",     "Priority email",     Icons.Default.Support),
+    PlanFeature("Workspaces",            "Up to 3",       "Unlimited (> 3)",      Icons.Default.Folder),
+    PlanFeature("AI Chat & Copilot",     "Locked",        "Unlimited queries",  Icons.Default.AutoAwesome),
+    PlanFeature("Team Collaboration",    "Basic",         "Full-time live sync",Icons.Default.People),
+    PlanFeature("Team Invites",          "Up to 4 / ws",  "Unlimited (> 4)",    Icons.Default.PersonAdd),
+    PlanFeature("Workspace Icons",       "Folder only",   "All custom icons",   Icons.Default.Star),
+    PlanFeature("Priority Email Support","Community",     "Priority 24/7 email",Icons.Default.Support),
+    PlanFeature("Tasks & Goal Tracking", "Unlimited",     "Unlimited + AI",     Icons.Default.CheckCircle),
+    PlanFeature("Notes & Categories",    "Unlimited",     "Unlimited + AI",     Icons.Default.Edit),
+    PlanFeature("Calendar & Scheduling", "Full access",   "Full access",        Icons.Default.DateRange),
 )
 
 private val FREE_FEATURES = listOf(
-    "Up to 3 workspaces (solo use)",
-    "Personal task & goal management",
-    "Basic note taking",
-    "Calendar view",
-    "Local data storage",
+    "Up to 3 workspaces",
+    "Up to 4 team invites per workspace",
+    "Standard workspace icons",
+    "Unlimited personal tasks & goals",
+    "Unlimited rich notes & categories",
+    "Calendar view & date scheduling",
+    "Home screen widgets & reminders",
+    "Community email support",
 )
 
 private val PRO_FEATURES = listOf(
-    "Unlimited workspaces & members",
-    "AI Chat — unlimited queries",
-    "AI-powered task & note generation",
-    "Full team collaboration & invitations",
-    "Advanced calendar scheduling",
-    "All workspace icons & themes",
+    "Unlimited workspaces (more than 3)",
+    "AI Chat & Copilot assistant",
+    "Full-time team collaboration",
+    "Unlimited team invites (more than 4)",
+    "All custom workspace icons",
     "Priority email support",
 )
 
@@ -125,24 +126,24 @@ fun PricingScreen(navController: NavController, viewModel: MainAppViewModel) {
 
     // Helper: get formatted price from ProductDetails
     fun priceFor(sku: String): String {
-        val detail = productDetailsMap[sku] ?: return if (sku == BillingSkus.PRO_ANNUAL) "$6.67/mo" else "$9.99/mo"
+        val detail = productDetailsMap[sku] ?: return if (sku == BillingSkus.PRO_ANNUAL) "€4.67/mo" else "€6.99/mo"
         val offer = detail.subscriptionOfferDetails?.firstOrNull() ?: return "—"
         val phase = offer.pricingPhases.pricingPhaseList.lastOrNull() ?: return "—"
         return phase.formattedPrice
     }
 
     fun annualMonthlyPrice(sku: String): String {
-        val detail = productDetailsMap[sku] ?: return "$6.67"
-        val offer = detail.subscriptionOfferDetails?.firstOrNull() ?: return "$6.67"
-        val phase = offer.pricingPhases.pricingPhaseList.lastOrNull() ?: return "$6.67"
+        val detail = productDetailsMap[sku] ?: return "4.67"
+        val offer = detail.subscriptionOfferDetails?.firstOrNull() ?: return "4.67"
+        val phase = offer.pricingPhases.pricingPhaseList.lastOrNull() ?: return "4.67"
         val annualCents = phase.priceAmountMicros / 1_000_000.0 / 12.0
         return "${"%.2f".format(annualCents)}"
     }
 
     fun annualTotalPrice(sku: String): String {
-        val detail = productDetailsMap[sku] ?: return "$79.99/year"
-        val offer = detail.subscriptionOfferDetails?.firstOrNull() ?: return "$79.99/year"
-        val phase = offer.pricingPhases.pricingPhaseList.lastOrNull() ?: return "$79.99/year"
+        val detail = productDetailsMap[sku] ?: return "€55.99/year"
+        val offer = detail.subscriptionOfferDetails?.firstOrNull() ?: return "€55.99/year"
+        val phase = offer.pricingPhases.pricingPhaseList.lastOrNull() ?: return "€55.99/year"
         return "${phase.formattedPrice}/year"
     }
 
@@ -235,7 +236,7 @@ fun PricingScreen(navController: NavController, viewModel: MainAppViewModel) {
                 // ── Free card ────────────────────────────────────────────────
                 PricingCard(
                     title = "Free",
-                    priceLabel = "$0",
+                    priceLabel = "€0",
                     period = "forever",
                     description = "Perfect for individuals getting started with personal task and goal management.",
                     features = FREE_FEATURES,
@@ -258,7 +259,7 @@ fun PricingScreen(navController: NavController, viewModel: MainAppViewModel) {
                     val annualSku = BillingSkus.PRO_ANNUAL
                     PricingCard(
                         title = "Pro Annual",
-                        priceLabel = "$${annualMonthlyPrice(annualSku)}",
+                        priceLabel = "€${annualMonthlyPrice(annualSku)}",
                         period = "mo",
                         billNote = "Billed ${annualTotalPrice(annualSku)} · Save 33%",
                         description = "Our best value plan — full Pro access at a significant discount for annual commitment.",

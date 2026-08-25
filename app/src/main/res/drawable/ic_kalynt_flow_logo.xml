@@ -1,0 +1,84 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M18,12h72a18,18 0 0,1 18,18v48a18,18 0 0,1 -18,18h-72a18,18 0 0,1 -18,-18v-48a18,18 0 0,1 18,-18z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108">
+                <item android:color="#1E1B4B" android:offset="0.0" />
+                <item android:color="#0F172A" android:offset="0.5" />
+                <item android:color="#020617" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Geometric Flow Nodes -->
+    <path
+        android:pathData="M32,38 C32,30 46,30 54,38 C62,46 76,46 76,38"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="32"
+                android:startY="30"
+                android:endX="76"
+                android:endY="46">
+                <item android:color="#38BDF8" android:offset="0.0" />
+                <item android:color="#818CF8" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M76,70 C76,78 62,78 54,70 C46,62 32,62 32,70"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="32"
+                android:startY="62"
+                android:endX="76"
+                android:endY="78">
+                <item android:color="#818CF8" android:offset="0.0" />
+                <item android:color="#C084FC" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M54,38 L54,70"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="38"
+                android:endX="54"
+                android:endY="70">
+                <item android:color="#38BDF8" android:offset="0.0" />
+                <item android:color="#A855F7" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Core Flow Orbs -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M32,38m-5,0a5,5 0 1,1 10,0a5,5 0 1,1 -10,0" />
+    <path
+        android:fillColor="#818CF8"
+        android:pathData="M54,54m-6,0a6,6 0 1,1 12,0a6,6 0 1,1 -12,0" />
+    <path
+        android:fillColor="#C084FC"
+        android:pathData="M76,70m-5,0a5,5 0 1,1 10,0a5,5 0 1,1 -10,0" />
+</vector>
