@@ -47,6 +47,7 @@ class FirestoreTeamRepository(context: Context? = null) {
                                     id = doc.getString("id") ?: UUID.randomUUID().toString(),
                                     targetId = doc.getString("targetId") ?: workspaceId,
                                     targetType = doc.getString("targetType") ?: "WORKSPACE",
+                                    workspaceId = doc.getString("workspaceId") ?: workspaceId,
                                     authorName = doc.getString("authorName") ?: "Unknown",
                                     authorEmail = doc.getString("authorEmail") ?: "",
                                     content = doc.getString("content") ?: "",
@@ -61,12 +62,16 @@ class FirestoreTeamRepository(context: Context? = null) {
                                 scope.launch {
                                     try {
                                         list.forEach { roomDb.commentDao().insertComment(it) }
-                                    } catch (e: Exception) {}
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("FirestoreTeamRepo", "Failed to cache comments locally", e)
+                                    }
                                 }
                             }
                         }
                     }
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.e("FirestoreTeamRepo", "Failed to attach comments listener", e)
+            }
         } else {
             trySend(emptyList())
         }
@@ -77,26 +82,34 @@ class FirestoreTeamRepository(context: Context? = null) {
     }
 
     suspend fun addComment(workspaceId: String, comment: CommentEntity) {
+        val finalWsId = if (comment.workspaceId.isNotBlank()) comment.workspaceId else workspaceId
+        val updatedComment = if (comment.workspaceId.isBlank()) comment.copy(workspaceId = finalWsId) else comment
         try {
-            roomDb?.commentDao()?.insertComment(comment)
-        } catch (e: Exception) {}
+            roomDb?.commentDao()?.insertComment(updatedComment)
+        } catch (e: Exception) {
+            android.util.Log.e("FirestoreTeamRepo", "Failed to save comment in local DB", e)
+        }
         try {
-            db.collection("workspaces").document(workspaceId)
-                .collection("comments").document(comment.id).set(
+            db.collection("workspaces").document(finalWsId)
+                .collection("comments").document(updatedComment.id).set(
                     mapOf(
-                        "id" to comment.id,
-                        "targetId" to comment.targetId,
-                        "targetType" to comment.targetType,
-                        "authorName" to comment.authorName,
-                        "authorEmail" to comment.authorEmail,
-                        "content" to comment.content,
-                        "timestamp" to comment.timestamp,
-                        "readByEmails" to comment.readByEmails,
-                        "reactions" to comment.reactions,
-                        "authorAvatarUrl" to comment.authorAvatarUrl
+                        "id" to updatedComment.id,
+                        "targetId" to updatedComment.targetId,
+                        "targetType" to updatedComment.targetType,
+                        "workspaceId" to updatedComment.workspaceId,
+                        "authorName" to updatedComment.authorName,
+                        "authorEmail" to updatedComment.authorEmail,
+                        "content" to updatedComment.content,
+                        "timestamp" to updatedComment.timestamp,
+                        "readByEmails" to updatedComment.readByEmails,
+                        "reactions" to updatedComment.reactions,
+                        "authorAvatarUrl" to updatedComment.authorAvatarUrl
                     )
                 ).await()
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("FirestoreTeamRepo", "Failed to persist comment in Firestore", e)
+            throw e
+        }
     }
 
     suspend fun updateComment(workspaceId: String, comment: CommentEntity) {
@@ -107,7 +120,10 @@ class FirestoreTeamRepository(context: Context? = null) {
         try {
             db.collection("workspaces").document(workspaceId)
                 .collection("comments").document(commentId).delete().await()
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("FirestoreTeamRepo", "Failed to delete comment in Firestore", e)
+            throw e
+        }
     }
 
     fun getUserMemberships(email: String): Flow<List<WorkspaceMemberEntity>> = callbackFlow {
@@ -205,7 +221,9 @@ class FirestoreTeamRepository(context: Context? = null) {
     suspend fun addMember(workspaceId: String, member: WorkspaceMemberEntity) {
         try {
             roomDb?.workspaceMemberDao()?.insertMember(member)
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("FirestoreTeamRepo", "Failed to cache member locally", e)
+        }
         try {
             val data = mapOf(
                 "id" to member.id,
@@ -221,18 +239,26 @@ class FirestoreTeamRepository(context: Context? = null) {
             db.collection("workspaces").document(workspaceId)
                 .collection("members").document(member.id).set(data).await()
             db.collection("memberships").document(member.id).set(data).await()
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("FirestoreTeamRepo", "Failed to write member in Firestore", e)
+            throw e
+        }
     }
 
     suspend fun removeMember(workspaceId: String, memberId: String) {
         try {
             roomDb?.workspaceMemberDao()?.deleteMemberById(memberId)
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("FirestoreTeamRepo", "Failed to remove member locally", e)
+        }
         try {
             db.collection("workspaces").document(workspaceId)
                 .collection("members").document(memberId).delete().await()
             db.collection("memberships").document(memberId).delete().await()
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("FirestoreTeamRepo", "Failed to remove member in Firestore", e)
+            throw e
+        }
     }
 
     fun getTypingUsers(workspaceId: String): Flow<List<String>> = callbackFlow {

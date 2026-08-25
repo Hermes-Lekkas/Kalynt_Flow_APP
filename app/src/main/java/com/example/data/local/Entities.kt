@@ -76,6 +76,7 @@ data class WorkspaceMemberEntity(
     tableName = "comments",
     indices = [
         Index(value = ["targetId"]),
+        Index(value = ["workspaceId"]),
         Index(value = ["timestamp"])
     ]
 )
@@ -83,6 +84,7 @@ data class CommentEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val targetId: String = "",
     val targetType: String = "TASK", // TASK, WORKSPACE, NOTE
+    val workspaceId: String = "",
     val authorName: String = "",
     val authorEmail: String = "",
     val content: String = "",

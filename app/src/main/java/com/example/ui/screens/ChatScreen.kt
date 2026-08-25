@@ -1334,38 +1334,41 @@ fun processAiResponseAndExecuteActions(
                             "toggle_task" -> {
                                 val target = params.optString("taskId")
                                 val toggled = viewModel.toggleTaskByIdOrTitle(target)
-                                val taskTitle = toggled?.title ?: target
-                                actionsPerformed.add(
-                                    AiAction(
-                                        type = "TOGGLE_TASK",
-                                        title = taskTitle,
-                                        details = if (toggled?.isCompleted == true) "Completed" else "Incomplete"
+                                if (toggled != null) {
+                                    actionsPerformed.add(
+                                        AiAction(
+                                            type = "TOGGLE_TASK",
+                                            title = toggled.title,
+                                            details = if (toggled.isCompleted) "Completed" else "Incomplete"
+                                        )
                                     )
-                                )
+                                }
                             }
                             "delete_task" -> {
                                 val target = params.optString("taskId")
                                 val deleted = viewModel.deleteTaskByIdOrTitle(target)
-                                val taskTitle = deleted?.title ?: target
-                                actionsPerformed.add(
-                                    AiAction(
-                                        type = "DELETE_TASK",
-                                        title = taskTitle,
-                                        details = "Removed task"
+                                if (deleted != null) {
+                                    actionsPerformed.add(
+                                        AiAction(
+                                            type = "DELETE_TASK",
+                                            title = deleted.title,
+                                            details = "Removed task"
+                                        )
                                     )
-                                )
+                                }
                             }
                             "delete_note" -> {
                                 val target = params.optString("noteId")
                                 val deleted = viewModel.deleteNoteByIdOrTitle(target)
-                                val noteTitle = deleted?.title ?: target
-                                actionsPerformed.add(
-                                    AiAction(
-                                        type = "DELETE_NOTE",
-                                        title = noteTitle,
-                                        details = "Removed note"
+                                if (deleted != null) {
+                                    actionsPerformed.add(
+                                        AiAction(
+                                            type = "DELETE_NOTE",
+                                            title = deleted.title,
+                                            details = "Removed note"
+                                        )
                                     )
-                                )
+                                }
                             }
                             "create_workspace" -> {
                                 val wsName = params.optString("name", "New Workspace")

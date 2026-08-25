@@ -88,6 +88,9 @@ interface TaskDao {
 
     @Delete
     suspend fun deleteTask(task: TaskEntity)
+
+    @Query("DELETE FROM tasks WHERE workspaceId = :workspaceId")
+    suspend fun deleteTasksForWorkspace(workspaceId: String)
 }
 
 @Dao
@@ -120,6 +123,9 @@ interface NoteDao {
 
     @Delete
     suspend fun deleteNote(note: NoteEntity)
+
+    @Query("DELETE FROM notes WHERE workspaceId = :workspaceId")
+    suspend fun deleteNotesForWorkspace(workspaceId: String)
 }
 
 
@@ -160,6 +166,9 @@ interface CommentDao {
 
     @Delete
     suspend fun deleteComment(comment: CommentEntity)
+
+    @Query("DELETE FROM comments WHERE workspaceId = :workspaceId OR targetId = :workspaceId")
+    suspend fun deleteCommentsForWorkspace(workspaceId: String)
 }
 
 @androidx.room.Dao

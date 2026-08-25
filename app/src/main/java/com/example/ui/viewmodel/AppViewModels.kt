@@ -479,83 +479,143 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    val uiMessage = MutableStateFlow<String?>(null)
+    fun clearUiMessage() { uiMessage.value = null }
+
     fun updateTaskAssignee(task: TaskEntity, name: String, email: String) {
+        val previousList = _localTasks.value
         val updatedList = _localTasks.value.map {
             if (it.id == task.id) it.copy(assignedToName = name, assignedToEmail = email) else it
         }
         _localTasks.value = updatedList
         viewModelScope.launch {
-            repository.updateTaskAssignee(task, name, email)
+            try {
+                repository.updateTaskAssignee(task, name, email)
+            } catch (e: Exception) {
+                _localTasks.value = previousList
+                uiMessage.value = "Failed to update assignee. Please check your connection."
+            }
         }
     }
 
     fun toggleTask(task: TaskEntity) {
+        val previousList = _localTasks.value
         val updatedList = _localTasks.value.map {
             if (it.id == task.id) it.copy(isCompleted = !it.isCompleted) else it
         }
         _localTasks.value = updatedList
         viewModelScope.launch {
-            repository.toggleTaskCompleted(task)
+            try {
+                repository.toggleTaskCompleted(task)
+            } catch (e: Exception) {
+                _localTasks.value = previousList
+                uiMessage.value = "Failed to update task. Please check your connection."
+            }
         }
     }
 
     fun toggleTaskByIdOrTitle(target: String): TaskEntity? {
         val list = tasks.value
-        val found = list.find { it.id == target }
-            ?: list.find { it.title.equals(target, ignoreCase = true) }
-            ?: list.find { it.title.lowercase().contains(target.lowercase()) }
-        if (found != null) {
-            toggleTask(found)
+        val byId = list.find { it.id == target }
+        if (byId != null) {
+            toggleTask(byId)
+            return byId
         }
-        return found
+        val exactMatches = list.filter { it.title.equals(target, ignoreCase = true) }
+        if (exactMatches.size == 1) {
+            toggleTask(exactMatches.first())
+            return exactMatches.first()
+        }
+        val subMatches = list.filter { it.title.contains(target, ignoreCase = true) }
+        if (subMatches.size == 1) {
+            toggleTask(subMatches.first())
+            return subMatches.first()
+        }
+        return null
     }
 
     fun deleteTask(task: TaskEntity) {
+        val previousList = _localTasks.value
         val updatedList = _localTasks.value.filter { it.id != task.id }
         _localTasks.value = updatedList
         viewModelScope.launch {
-            repository.deleteTask(task)
+            try {
+                repository.deleteTask(task)
+            } catch (e: Exception) {
+                _localTasks.value = previousList
+                uiMessage.value = "Failed to delete task. Please check your connection."
+            }
         }
     }
 
     fun deleteTaskByIdOrTitle(target: String): TaskEntity? {
         val list = tasks.value
-        val found = list.find { it.id == target }
-            ?: list.find { it.title.equals(target, ignoreCase = true) }
-            ?: list.find { it.title.lowercase().contains(target.lowercase()) }
-        if (found != null) {
-            deleteTask(found)
+        val byId = list.find { it.id == target }
+        if (byId != null) {
+            deleteTask(byId)
+            return byId
         }
-        return found
+        val exactMatches = list.filter { it.title.equals(target, ignoreCase = true) }
+        if (exactMatches.size == 1) {
+            deleteTask(exactMatches.first())
+            return exactMatches.first()
+        }
+        val subMatches = list.filter { it.title.contains(target, ignoreCase = true) }
+        if (subMatches.size == 1) {
+            deleteTask(subMatches.first())
+            return subMatches.first()
+        }
+        return null
     }
 
     fun addNote(title: String, content: String, workspaceId: String = "", dueDateMs: Long = 0L) {
         viewModelScope.launch {
-            repository.addNote(title, content, workspaceId, dueDateMs)
+            try {
+                repository.addNote(title, content, workspaceId, dueDateMs)
+            } catch (e: Exception) {
+                uiMessage.value = "Failed to add note. Please check your connection."
+            }
         }
     }
 
     fun updateNote(note: NoteEntity) {
         viewModelScope.launch {
-            repository.updateNote(note)
+            try {
+                repository.updateNote(note)
+            } catch (e: Exception) {
+                uiMessage.value = "Failed to update note. Please check your connection."
+            }
         }
     }
 
     fun deleteNote(note: NoteEntity) {
         viewModelScope.launch {
-            repository.deleteNote(note)
+            try {
+                repository.deleteNote(note)
+            } catch (e: Exception) {
+                uiMessage.value = "Failed to delete note. Please check your connection."
+            }
         }
     }
 
     fun deleteNoteByIdOrTitle(target: String): NoteEntity? {
         val list = notes.value
-        val found = list.find { it.id == target }
-            ?: list.find { it.title.equals(target, ignoreCase = true) }
-            ?: list.find { it.title.lowercase().contains(target.lowercase()) }
-        if (found != null) {
-            deleteNote(found)
+        val byId = list.find { it.id == target }
+        if (byId != null) {
+            deleteNote(byId)
+            return byId
         }
-        return found
+        val exactMatches = list.filter { it.title.equals(target, ignoreCase = true) }
+        if (exactMatches.size == 1) {
+            deleteNote(exactMatches.first())
+            return exactMatches.first()
+        }
+        val subMatches = list.filter { it.title.contains(target, ignoreCase = true) }
+        if (subMatches.size == 1) {
+            deleteNote(subMatches.first())
+            return subMatches.first()
+        }
+        return null
     }
 
     fun addWorkspaceMember(
@@ -565,35 +625,23 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         role: String = "Member"
     ) {
         viewModelScope.launch {
-            val colors = listOf("#2563EB", "#7C3AED", "#DB2777", "#059669", "#D97706")
-            val randomColor = colors.random()
-            val member = WorkspaceMemberEntity(
-                workspaceId = workspaceId,
-                name = name,
-                email = email,
-                role = role,
-                avatarColorHex = randomColor,
-                status = "Pending"
-            )
-            firestoreTeamRepo.addMember(workspaceId, member)
-            val ws = workspaces.value.find { it.id == workspaceId }
-            if (ws != null) {
-                if (!ws.memberEmails.contains(email)) {
-                    val updatedWs = ws.copy(memberEmails = ws.memberEmails + email)
-                    repository.updateWorkspace(updatedWs)
-                }
-            }
-            tasks.value.filter { it.workspaceId == workspaceId }.forEach { task ->
-                if (!task.memberEmails.contains(email)) {
-                    val updatedTask = task.copy(memberEmails = task.memberEmails + email)
-                    repository.updateTask(updatedTask)
-                }
-            }
-            notes.value.filter { it.workspaceId == workspaceId }.forEach { note ->
-                if (!note.memberEmails.contains(email)) {
-                    val updatedNote = note.copy(memberEmails = note.memberEmails + email)
-                    repository.updateNote(updatedNote)
-                }
+            try {
+                val colors = listOf("#2563EB", "#7C3AED", "#DB2777", "#059669", "#D97706")
+                val randomColor = colors.random()
+                val member = WorkspaceMemberEntity(
+                    workspaceId = workspaceId,
+                    name = name,
+                    email = email,
+                    role = role,
+                    avatarColorHex = randomColor,
+                    status = "Pending"
+                )
+                // Note: Only create the Pending membership record.
+                // Do NOT grant read access to workspace/tasks/notes until the invitation is accepted in acceptInvitation().
+                firestoreTeamRepo.addMember(workspaceId, member)
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to invite member", e)
+                uiMessage.value = "Failed to invite member. Please check your connection."
             }
         }
     }
@@ -653,43 +701,69 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("AppViewModels", "Failed to accept invitation", e)
+                uiMessage.value = "Failed to accept invitation."
             }
         }
     }
 
     fun declineInvitation(member: WorkspaceMemberEntity) {
         viewModelScope.launch {
-            firestoreTeamRepo.removeMember(member.workspaceId, member.id)
-            val ws = workspaces.value.find { it.id == member.workspaceId }
-            if (ws != null) {
-                val updatedWs = ws.copy(memberEmails = ws.memberEmails - member.email)
-                repository.updateWorkspace(updatedWs)
+            try {
+                firestoreTeamRepo.removeMember(member.workspaceId, member.id)
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to decline invitation", e)
             }
         }
     }
 
     fun removeWorkspaceMember(member: WorkspaceMemberEntity) {
         viewModelScope.launch {
-            firestoreTeamRepo.removeMember(member.workspaceId, member.id)
-            val ws = workspaces.value.find { it.id == member.workspaceId }
-            if (ws != null) {
-                if (ws.memberEmails.contains(member.email)) {
-                    val updatedWs = ws.copy(memberEmails = ws.memberEmails - member.email)
-                    repository.updateWorkspace(updatedWs)
+            try {
+                // 1. Remove member record
+                firestoreTeamRepo.removeMember(member.workspaceId, member.id)
+
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+
+                // 2. Query workspace directly from Firestore to ensure freshness
+                val wsDocRef = db.collection("workspaces").document(member.workspaceId)
+                val wsDoc = wsDocRef.get().await()
+                if (wsDoc.exists()) {
+                    val currentEmails = wsDoc.get("memberEmails") as? List<String> ?: emptyList()
+                    if (currentEmails.contains(member.email)) {
+                        val updatedEmails = currentEmails.filter { it != member.email }
+                        wsDocRef.update("memberEmails", updatedEmails).await()
+                    }
                 }
-            }
-            tasks.value.filter { it.workspaceId == member.workspaceId }.forEach { task ->
-                if (task.memberEmails.contains(member.email)) {
-                    val updatedTask = task.copy(memberEmails = task.memberEmails - member.email)
-                    repository.updateTask(updatedTask)
+
+                // 3. Query all tasks of this workspace directly from Firestore to revoke access
+                val tasksSnap = db.collection("tasks")
+                    .whereEqualTo("workspaceId", member.workspaceId)
+                    .get()
+                    .await()
+                for (doc in tasksSnap.documents) {
+                    val currentEmails = doc.get("memberEmails") as? List<String> ?: emptyList()
+                    if (currentEmails.contains(member.email)) {
+                        val updatedEmails = currentEmails.filter { it != member.email }
+                        doc.reference.update("memberEmails", updatedEmails).await()
+                    }
                 }
-            }
-            notes.value.filter { it.workspaceId == member.workspaceId }.forEach { note ->
-                if (note.memberEmails.contains(member.email)) {
-                    val updatedNote = note.copy(memberEmails = note.memberEmails - member.email)
-                    repository.updateNote(updatedNote)
+
+                // 4. Query all notes of this workspace directly from Firestore to revoke access
+                val notesSnap = db.collection("notes")
+                    .whereEqualTo("workspaceId", member.workspaceId)
+                    .get()
+                    .await()
+                for (doc in notesSnap.documents) {
+                    val currentEmails = doc.get("memberEmails") as? List<String> ?: emptyList()
+                    if (currentEmails.contains(member.email)) {
+                        val updatedEmails = currentEmails.filter { it != member.email }
+                        doc.reference.update("memberEmails", updatedEmails).await()
+                    }
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to remove workspace member", e)
+                uiMessage.value = "Failed to remove member. Please check your connection."
             }
         }
     }
@@ -700,43 +774,85 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         authorName: String,
         authorEmail: String,
         content: String,
-        authorAvatarUrl: String = ""
+        authorAvatarUrl: String = "",
+        workspaceId: String = ""
     ) {
-        val currentWorkspaceId = _selectedWorkspaceId.value ?: return
+        val targetWsId = workspaceId.ifBlank {
+            when (targetType) {
+                "WORKSPACE" -> targetId
+                "TASK" -> tasks.value.find { it.id == targetId }?.workspaceId ?: ""
+                "NOTE" -> notes.value.find { it.id == targetId }?.workspaceId ?: ""
+                else -> ""
+            }
+        }.ifBlank { _selectedWorkspaceId.value ?: "" }
+
+        if (targetWsId.isBlank()) return
         viewModelScope.launch {
-            val comment = CommentEntity(
-                targetId = targetId,
-                targetType = targetType,
-                authorName = authorName,
-                authorEmail = authorEmail,
-                content = content,
-                authorAvatarUrl = authorAvatarUrl
-            )
-            firestoreTeamRepo.addComment(currentWorkspaceId, comment)
+            try {
+                val comment = CommentEntity(
+                    targetId = targetId,
+                    targetType = targetType,
+                    workspaceId = targetWsId,
+                    authorName = authorName,
+                    authorEmail = authorEmail,
+                    content = content,
+                    authorAvatarUrl = authorAvatarUrl
+                )
+                firestoreTeamRepo.addComment(targetWsId, comment)
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to post comment", e)
+                uiMessage.value = "Failed to post comment."
+            }
         }
     }
 
     fun markCommentAsRead(comment: CommentEntity, email: String) {
-        val currentWorkspaceId = _selectedWorkspaceId.value ?: return
+        val wsId = comment.workspaceId.ifBlank {
+            when (comment.targetType) {
+                "WORKSPACE" -> comment.targetId
+                "TASK" -> tasks.value.find { it.id == comment.targetId }?.workspaceId ?: ""
+                "NOTE" -> notes.value.find { it.id == comment.targetId }?.workspaceId ?: ""
+                else -> ""
+            }
+        }.ifBlank { _selectedWorkspaceId.value ?: "" }
+
+        if (wsId.isBlank()) return
         if (!comment.readByEmails.contains(email)) {
             viewModelScope.launch {
-                val updated = comment.copy(readByEmails = comment.readByEmails + email)
-                firestoreTeamRepo.updateComment(currentWorkspaceId, updated)
+                try {
+                    val updated = comment.copy(readByEmails = comment.readByEmails + email, workspaceId = wsId)
+                    firestoreTeamRepo.updateComment(wsId, updated)
+                } catch (e: Exception) {
+                    android.util.Log.e("AppViewModels", "Failed to mark comment as read", e)
+                }
             }
         }
     }
 
     fun toggleReaction(comment: CommentEntity, email: String, emoji: String) {
-        val currentWorkspaceId = _selectedWorkspaceId.value ?: return
-        viewModelScope.launch {
-            val currentReactions = comment.reactions.toMutableMap()
-            if (currentReactions[email] == emoji) {
-                currentReactions.remove(email)
-            } else {
-                currentReactions[email] = emoji
+        val wsId = comment.workspaceId.ifBlank {
+            when (comment.targetType) {
+                "WORKSPACE" -> comment.targetId
+                "TASK" -> tasks.value.find { it.id == comment.targetId }?.workspaceId ?: ""
+                "NOTE" -> notes.value.find { it.id == comment.targetId }?.workspaceId ?: ""
+                else -> ""
             }
-            val updated = comment.copy(reactions = currentReactions)
-            firestoreTeamRepo.updateComment(currentWorkspaceId, updated)
+        }.ifBlank { _selectedWorkspaceId.value ?: "" }
+
+        if (wsId.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val currentReactions = comment.reactions.toMutableMap()
+                if (currentReactions[email] == emoji) {
+                    currentReactions.remove(email)
+                } else {
+                    currentReactions[email] = emoji
+                }
+                val updated = comment.copy(reactions = currentReactions, workspaceId = wsId)
+                firestoreTeamRepo.updateComment(wsId, updated)
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to toggle reaction", e)
+            }
         }
     }
 
@@ -748,14 +864,32 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
     fun setTypingStatus(email: String, name: String, isTyping: Boolean) {
         val currentWorkspaceId = _selectedWorkspaceId.value ?: return
         viewModelScope.launch {
-            firestoreTeamRepo.setTyping(currentWorkspaceId, email, name, isTyping)
+            try {
+                firestoreTeamRepo.setTyping(currentWorkspaceId, email, name, isTyping)
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to set typing status", e)
+            }
         }
     }
 
     fun deleteComment(comment: CommentEntity) {
-        val currentWorkspaceId = _selectedWorkspaceId.value ?: return
+        val wsId = comment.workspaceId.ifBlank {
+            when (comment.targetType) {
+                "WORKSPACE" -> comment.targetId
+                "TASK" -> tasks.value.find { it.id == comment.targetId }?.workspaceId ?: ""
+                "NOTE" -> notes.value.find { it.id == comment.targetId }?.workspaceId ?: ""
+                else -> ""
+            }
+        }.ifBlank { _selectedWorkspaceId.value ?: "" }
+
+        if (wsId.isBlank()) return
         viewModelScope.launch {
-            firestoreTeamRepo.deleteComment(currentWorkspaceId, comment.id)
+            try {
+                firestoreTeamRepo.deleteComment(wsId, comment.id)
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to delete comment", e)
+                uiMessage.value = "Failed to delete comment."
+            }
         }
     }
 

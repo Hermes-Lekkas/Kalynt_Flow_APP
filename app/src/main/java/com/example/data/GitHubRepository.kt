@@ -355,8 +355,8 @@ class GitHubRepository(private val context: Context) {
             val owner = parts[0]
             val repoName = parts[1]
             
-            // Fetch issues/PRs from GitHub API
-            val response = GitHubClient.api.getRepoIssues(authHeader, owner, repoName, state = "open")
+            // Fetch issues/PRs from GitHub API (fetch both open and closed to sync completed status)
+            val response = GitHubClient.api.getRepoIssues(authHeader, owner, repoName, state = "all")
             if (!response.isSuccessful) {
                 val errorBody = response.errorBody()?.string() ?: "Unknown API error"
                 throw Exception("Failed to fetch issues: $errorBody")
@@ -476,8 +476,8 @@ class GitHubRepository(private val context: Context) {
                 mapOf(
                     "syncStatus" to "synced",
                     "lastSyncedAt" to System.currentTimeMillis(),
-                    "openIssuesCount" to issuesList.size.toLong(),
-                    "openPrCount" to prsList.size.toLong(),
+                    "openIssuesCount" to issuesList.count { it.state == "open" }.toLong(),
+                    "openPrCount" to prsList.count { it.state == "open" }.toLong(),
                     "syncedTaskIds" to syncedTaskIds,
                     "syncedNoteIds" to syncedNoteIds,
                     "error" to null
