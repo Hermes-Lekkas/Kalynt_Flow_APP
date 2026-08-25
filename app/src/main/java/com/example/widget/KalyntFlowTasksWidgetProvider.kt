@@ -25,35 +25,7 @@ class KalyntFlowTasksWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        val action = intent.action
-        if (action == ACTION_COMPLETE_TASK) {
-            val taskId = intent.getStringExtra(EXTRA_TASK_ID)
-            if (!taskId.isNullOrBlank()) {
-                val pendingResult = goAsync()
-                widgetScope.launch {
-                    try {
-                        val db = AppDatabase.getDatabase(context)
-                        db.taskDao().completeTaskSync(taskId)
-                        try {
-                            FirebaseFirestore.getInstance()
-                                .collection("tasks")
-                                .document(taskId)
-                                .update("isCompleted", true)
-                                .await()
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                        updateAllWidgets(context)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        pendingResult.finish()
-                    }
-                }
-            }
-        } else {
-            updateAllWidgets(context)
-        }
+        updateAllWidgets(context)
     }
 
     override fun onUpdate(
@@ -76,9 +48,6 @@ class KalyntFlowTasksWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_COMPLETE_TASK = "com.example.ACTION_COMPLETE_TASK"
-        const val EXTRA_TASK_ID = "extra_task_id"
-
         suspend fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,

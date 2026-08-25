@@ -133,7 +133,7 @@ fun WorkspaceInvitationsDialog(
                                 modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                items(pendingInvitations) { invitation ->
+                                items(pendingInvitations, key = { it.id }) { invitation ->
                                     val workspace = workspaces.find { it.id == invitation.workspaceId }
                                     val wsName = workspace?.name ?: "Unknown Workspace"
                                     val colorHex = workspace?.colorHex ?: "#2563EB"

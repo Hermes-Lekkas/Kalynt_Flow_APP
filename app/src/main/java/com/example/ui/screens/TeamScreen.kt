@@ -890,7 +890,7 @@ fun TeamScreen(
                             modifier = Modifier.heightIn(max = 140.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            items(options) { option ->
+                            items(options, key = { it }) { option ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier

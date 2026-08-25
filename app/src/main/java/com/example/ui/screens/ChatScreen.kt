@@ -1938,7 +1938,7 @@ fun AiFiltersBottomSheet(
                         .fillMaxWidth()
                         .heightIn(max = 380.dp)
                 ) {
-                    items(allReports) { report ->
+                    items(allReports, key = { it.id }) { report ->
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),

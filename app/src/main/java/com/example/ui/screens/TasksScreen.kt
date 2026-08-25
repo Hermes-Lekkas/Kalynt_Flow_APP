@@ -1280,7 +1280,7 @@ fun TaskDetailContent(
                     shape = RoundedCornerShape(8.dp)
                 )
             }
-            items(workspaceMembers) { member ->
+            items(workspaceMembers, key = { it.id }) { member ->
                 val isAssigned = task.assignedToName == member.name
                 FilterChip(
                     selected = isAssigned,
@@ -1337,7 +1337,7 @@ fun TaskDetailContent(
                     .fillMaxWidth()
                     .heightIn(max = 240.dp)
             ) {
-                items(comments) { comment ->
+                items(comments, key = { it.id }) { comment ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1635,7 +1635,7 @@ fun AddTaskDialog(
                                 shape = RoundedCornerShape(8.dp)
                             )
                         }
-                        items(workspaceMembers) { member ->
+                        items(workspaceMembers, key = { it.id }) { member ->
                             val isSelected = selectedAssignee?.id == member.id
                             FilterChip(
                                 selected = isSelected,
@@ -1670,7 +1670,7 @@ fun AddTaskDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(workspaces) { ws ->
+                        items(workspaces, key = { it.id }) { ws ->
                             val wsColor = remember(ws.colorHex) { parseHexColor(ws.colorHex) }
                             FilterChip(
                                 selected = selectedWsId == ws.id,

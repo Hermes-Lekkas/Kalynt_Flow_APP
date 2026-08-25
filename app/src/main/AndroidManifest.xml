@@ -38,7 +38,6 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.ACTION_REFRESH_QUICK_WIDGET" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -51,8 +50,6 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.ACTION_COMPLETE_TASK" />
-                <action android:name="com.example.ACTION_REFRESH_TASKS_WIDGET" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

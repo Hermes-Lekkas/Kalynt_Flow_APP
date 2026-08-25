@@ -367,7 +367,7 @@ fun WorkspaceCard(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.padding(top = 4.dp)
                         ) {
-                            items(members) { m ->
+                            items(members, key = { it.id }) { m ->
                                 MemberChip(member = m, onDelete = { onDeleteMember(m) })
                             }
                         }
