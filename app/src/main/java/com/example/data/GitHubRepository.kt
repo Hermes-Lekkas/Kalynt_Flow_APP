@@ -38,6 +38,8 @@ data class LinkedRepo(
     val lastSyncedAt: Long = 0L,
     val openIssuesCount: Long = 0L,
     val openPrCount: Long = 0L,
+    val syncedTaskIds: List<String> = emptyList(),
+    val syncedNoteIds: List<String> = emptyList(),
     val error: String? = null
 )
 
@@ -278,35 +280,57 @@ class GitHubRepository(private val context: Context) {
 
     suspend fun unlinkRepository(repoId: String) {
         val uid = auth.currentUser?.uid ?: return
+        val docRef = firestore.collection("users").document(uid).collection("linkedRepos").document(repoId)
         
-        // 1. Delete from users/{uid}/linkedRepos/{repoId}
-        firestore.collection("users").document(uid).collection("linkedRepos").document(repoId).delete().await()
-        
-        // 2. Clean up associated tasks and notes
         try {
-            val tasksSnap = firestore.collection("tasks").get().await()
+            val docSnap = docRef.get().await()
+            val workspaceId = docSnap.getString("workspaceId") ?: ""
+            @Suppress("UNCHECKED_CAST")
+            val syncedTaskIds = (docSnap.get("syncedTaskIds") as? List<String>) ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val syncedNoteIds = (docSnap.get("syncedNoteIds") as? List<String>) ?: emptyList()
+
             val batch = firestore.batch()
-            var deletedCount = 0
-            for (doc in tasksSnap.documents) {
-                if (doc.id.startsWith("github_issue_${repoId}_")) {
-                    batch.delete(doc.reference)
-                    deletedCount++
+
+            // 1. Delete tasks by exact deterministic IDs
+            for (taskId in syncedTaskIds) {
+                batch.delete(firestore.collection("tasks").document(taskId))
+            }
+            // 2. Delete notes by exact deterministic IDs
+            for (noteId in syncedNoteIds) {
+                batch.delete(firestore.collection("notes").document(noteId))
+            }
+
+            // Fallback for legacy items: query strictly scoped to this workspaceId, NEVER whole collection
+            if (syncedTaskIds.isEmpty() && workspaceId.isNotBlank()) {
+                val tasksSnap = firestore.collection("tasks")
+                    .whereEqualTo("workspaceId", workspaceId)
+                    .get().await()
+                for (doc in tasksSnap.documents) {
+                    if (doc.id.startsWith("github_issue_${repoId}_")) {
+                        batch.delete(doc.reference)
+                    }
                 }
             }
-            
-            val notesSnap = firestore.collection("notes").get().await()
-            for (doc in notesSnap.documents) {
-                if (doc.id.startsWith("github_pr_${repoId}_")) {
-                    batch.delete(doc.reference)
-                    deletedCount++
+            if (syncedNoteIds.isEmpty() && workspaceId.isNotBlank()) {
+                val notesSnap = firestore.collection("notes")
+                    .whereEqualTo("workspaceId", workspaceId)
+                    .get().await()
+                for (doc in notesSnap.documents) {
+                    if (doc.id.startsWith("github_pr_${repoId}_")) {
+                        batch.delete(doc.reference)
+                    }
                 }
             }
-            
-            if (deletedCount > 0) {
-                batch.commit().await()
-            }
+
+            // Delete the linked repository record
+            batch.delete(docRef)
+            batch.commit().await()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to cleanly unlink repository $repoId", e)
+            try {
+                docRef.delete().await()
+            } catch (_: Exception) {}
         }
     }
 
@@ -444,6 +468,9 @@ class GitHubRepository(private val context: Context) {
             
             batch.commit().await()
             
+            val syncedTaskIds = issuesList.map { "github_issue_${repoId}_${it.number}" }
+            val syncedNoteIds = prsList.map { "github_pr_${repoId}_${it.number}" }
+
             // Update repository entry with success
             repoDocRef.set(
                 mapOf(
@@ -451,6 +478,8 @@ class GitHubRepository(private val context: Context) {
                     "lastSyncedAt" to System.currentTimeMillis(),
                     "openIssuesCount" to issuesList.size.toLong(),
                     "openPrCount" to prsList.size.toLong(),
+                    "syncedTaskIds" to syncedTaskIds,
+                    "syncedNoteIds" to syncedNoteIds,
                     "error" to null
                 ),
                 SetOptions.merge()

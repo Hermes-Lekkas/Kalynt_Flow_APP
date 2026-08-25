@@ -140,22 +140,6 @@ class TaskReminderReceiver : BroadcastReceiver() {
                     }
                 }
             }
-
-            Intent.ACTION_BOOT_COMPLETED -> {
-                val pendingResult = goAsync()
-                receiverScope.launch {
-                    try {
-                        NotificationScheduler.rescheduleAllActiveTasks(context)
-                        NotificationScheduler.scheduleDailyBriefing(context, 8, 30)
-                        NotificationScheduler.schedulePeriodicBackgroundSync(context)
-                        BackgroundSyncManager.start(context)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        pendingResult.finish()
-                    }
-                }
-            }
         }
     }
 

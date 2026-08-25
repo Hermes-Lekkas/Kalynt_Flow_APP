@@ -65,17 +65,18 @@
             android:permission="android.permission.BIND_REMOTEVIEWS"
             android:exported="false" />
 
-        <!-- Notification & Task Reminder Receiver -->
+        <!-- Notification & Task Reminder Receiver (Internal only) -->
         <receiver
             android:name=".notifications.TaskReminderReceiver"
+            android:exported="false" />
+
+        <!-- Device Boot Initialization Receiver (Protected by permission) -->
+        <receiver
+            android:name=".notifications.BootReceiver"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="com.example.ACTION_TRIGGER_TASK_REMINDER" />
-                <action android:name="com.example.ACTION_COMPLETE_TASK_NOTIFICATION" />
-                <action android:name="com.example.ACTION_SNOOZE_TASK" />
-                <action android:name="com.example.ACTION_DAILY_BRIEFING" />
-                <action android:name="com.example.ACTION_BACKGROUND_SYNC" />
             </intent-filter>
         </receiver>
 

@@ -10,6 +10,8 @@ import com.example.data.local.AppDatabase
 import com.example.data.local.NoteEntity
 import com.example.data.local.TaskEntity
 import com.example.data.local.WorkspaceEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -48,30 +50,19 @@ class KalyntFlowWidgetFactory(private val context: Context) : RemoteViewsService
         items.clear()
         try {
             val db = AppDatabase.getDatabase(context)
-            val workspaces: List<WorkspaceEntity> = runBlocking {
-                try {
-                    db.workspaceDao().getAllWorkspacesSync()
-                } catch (e: Exception) {
-                    emptyList()
+            val (workspaces, activeTasks, notes) = runBlocking(Dispatchers.IO) {
+                val wsDeferred = async {
+                    try { db.workspaceDao().getAllWorkspacesSync() } catch (e: Exception) { emptyList() }
                 }
+                val tasksDeferred = async {
+                    try { db.taskDao().getAllActiveTasksSync() } catch (e: Exception) { emptyList() }
+                }
+                val notesDeferred = async {
+                    try { db.noteDao().getAllNotesSync() } catch (e: Exception) { emptyList() }
+                }
+                Triple(wsDeferred.await(), tasksDeferred.await(), notesDeferred.await())
             }
             val workspaceMap = workspaces.associateBy { it.id }
-
-            val activeTasks: List<TaskEntity> = runBlocking {
-                try {
-                    db.taskDao().getAllActiveTasksSync()
-                } catch (e: Exception) {
-                    emptyList()
-                }
-            }
-
-            val notes: List<NoteEntity> = runBlocking {
-                try {
-                    db.noteDao().getAllNotesSync()
-                } catch (e: Exception) {
-                    emptyList()
-                }
-            }
 
             // 1. Add all active tasks
             for (task in activeTasks) {

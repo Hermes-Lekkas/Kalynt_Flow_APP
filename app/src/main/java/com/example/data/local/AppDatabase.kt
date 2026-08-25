@@ -20,7 +20,7 @@ import androidx.room.TypeConverters
         ReportedContentEntity::class,
         AiReportEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

@@ -25,3 +25,26 @@
 -keepclassmembers class com.android.billingclient.** { *; }
 -dontwarn com.android.billingclient.**
 
+# ── Moshi / JSON Deserialization ─────────────────────────────────────────────
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-keepclassmembers class * {
+    @com.squareup.moshi.Json <fields>;
+    @com.squareup.moshi.JsonClass <fields>;
+}
+-keep class com.squareup.moshi.** { *; }
+-keep class com.example.data.** { *; }
+-keep class com.example.data.local.** { *; }
+
+# ── Retrofit & OkHttp ────────────────────────────────────────────────────────
+-dontwarn retrofit2.**
+-keep class retrofit2.** { *; }
+-keepattributes *Annotation*
+
+# ── Room Database ────────────────────────────────────────────────────────────
+-keep class androidx.room.** { *; }
+-keep class * extends androidx.room.RoomDatabase
+-dontwarn androidx.room.paging.**
+
+# ── Coroutines ───────────────────────────────────────────────────────────────
+-dontwarn kotlinx.coroutines.**
+

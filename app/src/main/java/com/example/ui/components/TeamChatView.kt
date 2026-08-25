@@ -76,6 +76,38 @@ fun TeamChatView(
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
+    // Typing debounce state
+    var isTypingActive by remember { mutableStateOf(false) }
+
+    LaunchedEffect(messageText) {
+        val hasContent = messageText.isNotBlank()
+        if (hasContent) {
+            if (!isTypingActive) {
+                isTypingActive = true
+                onSetTyping(true)
+            }
+            // Debounce typing inactivity
+            kotlinx.coroutines.delay(2500L)
+            if (isTypingActive) {
+                isTypingActive = false
+                onSetTyping(false)
+            }
+        } else {
+            if (isTypingActive) {
+                isTypingActive = false
+                onSetTyping(false)
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (isTypingActive) {
+                onSetTyping(false)
+            }
+        }
+    }
+
     // Filter out messages from blocked users
     val blockedUserEmails = remember(blockedUsers) { blockedUsers.map { it.userEmail }.toSet() }
     val visibleComments = remember(comments, blockedUserEmails) {
@@ -484,7 +516,6 @@ fun TeamChatView(
                     value = messageText,
                     onValueChange = { 
                         messageText = it 
-                        onSetTyping(it.isNotBlank())
                     },
                     modifier = Modifier
                         .weight(1f)

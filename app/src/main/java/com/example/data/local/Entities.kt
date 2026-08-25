@@ -1,6 +1,7 @@
 package com.example.data.local
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
@@ -14,7 +15,14 @@ data class WorkspaceEntity(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "tasks")
+@Entity(
+    tableName = "tasks",
+    indices = [
+        Index(value = ["workspaceId"]),
+        Index(value = ["dueDateMs"]),
+        Index(value = ["isCompleted"])
+    ]
+)
 data class TaskEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val title: String = "",
@@ -28,7 +36,13 @@ data class TaskEntity(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "notes")
+@Entity(
+    tableName = "notes",
+    indices = [
+        Index(value = ["workspaceId"]),
+        Index(value = ["timestamp"])
+    ]
+)
 data class NoteEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val title: String = "",
@@ -39,7 +53,13 @@ data class NoteEntity(
     val dueDateMs: Long = 0L
 )
 
-@Entity(tableName = "workspace_members")
+@Entity(
+    tableName = "workspace_members",
+    indices = [
+        Index(value = ["workspaceId"]),
+        Index(value = ["email"])
+    ]
+)
 data class WorkspaceMemberEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val workspaceId: String = "",
@@ -52,7 +72,13 @@ data class WorkspaceMemberEntity(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "comments")
+@Entity(
+    tableName = "comments",
+    indices = [
+        Index(value = ["targetId"]),
+        Index(value = ["timestamp"])
+    ]
+)
 data class CommentEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val targetId: String = "",
@@ -73,7 +99,13 @@ data class ChatSessionEntity(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "chat_messages")
+@Entity(
+    tableName = "chat_messages",
+    indices = [
+        Index(value = ["sessionId"]),
+        Index(value = ["timestamp"])
+    ]
+)
 data class ChatMessageEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val sessionId: String = "",
