@@ -48,11 +48,12 @@ object BackgroundSyncManager {
         try {
             FirebaseAuth.getInstance().addAuthStateListener { auth ->
                 val user = auth.currentUser
-                if (user != null) {
+                val isGuest = user == null || user.isAnonymous || user.email.isNullOrBlank() || user.email?.contains("guest") == true || user.email?.contains("kalyntflow.app") == true
+                if (user != null && !isGuest && !user.email.isNullOrBlank()) {
                     Log.d(TAG, "User logged in (${user.email}). Attaching background Firestore listeners...")
                     attachFirestoreListeners(context.applicationContext, user.email ?: "")
                 } else {
-                    Log.d(TAG, "User logged out. Detaching background Firestore listeners...")
+                    Log.d(TAG, "Guest or signed out. Detaching background Firestore listeners...")
                     detachFirestoreListeners()
                 }
             }

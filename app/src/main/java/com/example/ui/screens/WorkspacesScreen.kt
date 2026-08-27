@@ -37,7 +37,6 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
     val currentTier by viewModel.activeSubscriptionTier.collectAsStateWithLifecycle()
     
     var showAddDialog by remember { mutableStateOf(false) }
-    var inviteWorkspaceTarget by remember { mutableStateOf<WorkspaceEntity?>(null) }
     var showProUpgradeDialog by remember { mutableStateOf(false) }
     
     var workspaceToDelete by remember { mutableStateOf<WorkspaceEntity?>(null) }
@@ -174,17 +173,6 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
             onUpgradeClick = {
                 workspaceToCustomizeIcon = null
                 showProUpgradeDialog = true
-            }
-        )
-    }
-
-    inviteWorkspaceTarget?.let { workspace ->
-        InviteMemberDialog(
-            workspaceName = workspace.name,
-            onDismiss = { inviteWorkspaceTarget = null },
-            onConfirm = { name, email, role ->
-                viewModel.addWorkspaceMember(workspace.id, name, email, role)
-                inviteWorkspaceTarget = null
             }
         )
     }
@@ -353,23 +341,17 @@ fun WorkspaceCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
             // Team Members Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("TEAM MEMBERS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                    if (members.isEmpty()) {
-                        Text("No collaborators yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
-                    } else {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.padding(top = 4.dp)
-                        ) {
-                            items(members, key = { it.id }) { m ->
-                                MemberChip(member = m, onDelete = { onDeleteMember(m) })
-                            }
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("TEAM MEMBERS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                if (members.isEmpty()) {
+                    Text("No collaborators yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                } else {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        items(members, key = { it.id }) { m ->
+                            MemberChip(member = m, onDelete = { onDeleteMember(m) })
                         }
                     }
                 }
@@ -409,88 +391,18 @@ fun MemberChip(member: WorkspaceMemberEntity, onDelete: () -> Unit) {
             )
             Text(member.name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
             Text("(${member.role})", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+            if (member.role != "Owner") {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Remove member",
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clickable { onDelete() }
+                )
+            }
         }
     }
-}
-
-@Composable
-fun InviteMemberDialog(
-    workspaceName: String,
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, email: String, role: String) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var role by remember { mutableStateOf("Editor") }
-    val roles = listOf("Admin", "Editor", "Viewer")
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.Group, null, tint = MaterialTheme.colorScheme.primary)
-                Text("Invite to $workspaceName", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Full Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
-                )
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email Address") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
-                )
-                
-                Text("Permission Role:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    roles.forEach { r ->
-                        FilterChip(
-                            selected = role == r,
-                            onClick = { role = r },
-                            label = { Text(r, style = MaterialTheme.typography.labelSmall) },
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isNotBlank() && email.isNotBlank()) {
-                        onConfirm(name, email, role)
-                    }
-                },
-                enabled = name.isNotBlank() && email.isNotBlank(),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Send Invite")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Cancel", color = MaterialTheme.colorScheme.secondary)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(16.dp)
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

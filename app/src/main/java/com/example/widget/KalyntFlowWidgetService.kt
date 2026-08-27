@@ -47,60 +47,57 @@ class KalyntFlowWidgetFactory(private val context: Context) : RemoteViewsService
     }
 
     private fun loadData() {
-        items.clear()
         try {
             val db = AppDatabase.getDatabase(context)
-            val (workspaces, activeTasks, notes) = runBlocking(Dispatchers.IO) {
-                val wsDeferred = async {
-                    try { db.workspaceDao().getAllWorkspacesSync() } catch (e: Exception) { emptyList() }
-                }
-                val tasksDeferred = async {
-                    try { db.taskDao().getAllActiveTasksSync() } catch (e: Exception) { emptyList() }
-                }
-                val notesDeferred = async {
-                    try { db.noteDao().getAllNotesSync() } catch (e: Exception) { emptyList() }
-                }
-                Triple(wsDeferred.await(), tasksDeferred.await(), notesDeferred.await())
-            }
-            val workspaceMap = workspaces.associateBy { it.id }
+            val newItems = mutableListOf<WidgetItem>()
+            runBlocking(Dispatchers.IO) {
+                val workspaces = try { db.workspaceDao().getAllWorkspacesSync() } catch (e: Exception) { emptyList() }
+                val activeTasks = try { db.taskDao().getAllActiveTasksSync() } catch (e: Exception) { emptyList() }
+                val notes = try { db.noteDao().getAllNotesSync() } catch (e: Exception) { emptyList() }
+                val workspaceMap = workspaces.associateBy { it.id }
 
-            // 1. Add all active tasks
-            for (task in activeTasks) {
-                val wsName = workspaceMap[task.workspaceId]?.name ?: "General"
-                val (badgeText, badgeColor) = getTaskBadge(task)
-                val subtitle = if (task.dueDateMs > 0) {
-                    "Due ${dateFormat.format(Date(task.dueDateMs))} • $wsName"
-                } else {
-                    "Task • $wsName"
+                // 1. Add all active tasks
+                for (task in activeTasks) {
+                    val wsName = workspaceMap[task.workspaceId]?.name ?: "General"
+                    val (badgeText, badgeColor) = getTaskBadge(task)
+                    val subtitle = if (task.dueDateMs > 0) {
+                        "Due ${dateFormat.format(Date(task.dueDateMs))} • $wsName"
+                    } else {
+                        "Task • $wsName"
+                    }
+                    newItems.add(
+                        WidgetItem(
+                            id = task.id,
+                            title = task.title.ifBlank { "Untitled Task" },
+                            subtitle = subtitle,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            iconRes = R.drawable.ic_widget_check_empty,
+                            isTask = true
+                        )
+                    )
                 }
-                items.add(
-                    WidgetItem(
-                        id = task.id,
-                        title = task.title.ifBlank { "Untitled Task" },
-                        subtitle = subtitle,
-                        badgeText = badgeText,
-                        badgeColor = badgeColor,
-                        iconRes = R.drawable.ic_widget_check_empty,
-                        isTask = true
-                    )
-                )
-            }
 
-            // 2. Add recent notes
-            for (note in notes.take(15)) {
-                val wsName = workspaceMap[note.workspaceId]?.name ?: "General"
-                val preview = note.content.trim().lines().firstOrNull()?.take(40) ?: "Note"
-                items.add(
-                    WidgetItem(
-                        id = note.id,
-                        title = note.title.ifBlank { "Untitled Note" },
-                        subtitle = "$preview • $wsName",
-                        badgeText = "NOTE",
-                        badgeColor = Color.parseColor("#818CF8"),
-                        iconRes = R.drawable.ic_widget_note,
-                        isTask = false
+                // 2. Add recent notes
+                for (note in notes.take(15)) {
+                    val wsName = workspaceMap[note.workspaceId]?.name ?: "General"
+                    val preview = note.content.trim().lines().firstOrNull()?.take(40) ?: "Note"
+                    newItems.add(
+                        WidgetItem(
+                            id = note.id,
+                            title = note.title.ifBlank { "Untitled Note" },
+                            subtitle = "$preview • $wsName",
+                            badgeText = "NOTE",
+                            badgeColor = Color.parseColor("#818CF8"),
+                            iconRes = R.drawable.ic_widget_note,
+                            isTask = false
+                        )
                     )
-                )
+                }
+            }
+            synchronized(items) {
+                items.clear()
+                items.addAll(newItems)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -157,7 +154,11 @@ class KalyntFlowWidgetFactory(private val context: Context) : RemoteViewsService
 
     override fun getViewTypeCount(): Int = 1
 
-    override fun getItemId(position: Int): Long = position.toLong()
+    override fun getItemId(position: Int): Long {
+        return synchronized(items) {
+            if (position in items.indices) items[position].id.hashCode().toLong() else position.toLong()
+        }
+    }
 
     override fun hasStableIds(): Boolean = true
 }

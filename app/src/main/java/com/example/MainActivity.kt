@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
   private lateinit var authViewModel: AuthViewModel
   private val currentIntentFlow = MutableStateFlow<Intent?>(null)
 
+  @SuppressLint("InvalidFragmentVersionForActivityResult")
   private val notificationPermissionLauncher = registerForActivityResult(
     ActivityResultContracts.RequestPermission()
   ) { isGranted ->

@@ -790,12 +790,20 @@ private fun StepConsent(
         Spacer(modifier = Modifier.height(12.dp))
 
         val uriHandler = LocalUriHandler.current
+        val context = androidx.compose.ui.platform.LocalContext.current
         TextButton(
             onClick = {
+                val url = "https://hermes-lekkas.github.io/Kalynt-Flow/"
                 try {
-                    uriHandler.openUri("https://hermes-lekkas.github.io/Kalynt-Flow/")
+                    uriHandler.openUri(url)
                 } catch (e: Exception) {
-                    // Fallback
+                    try {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    } catch (ex: Exception) {
+                        // Handled
+                    }
                 }
             },
             modifier = Modifier.align(Alignment.CenterHorizontally)

@@ -5,9 +5,12 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
@@ -31,6 +34,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import com.google.firebase.auth.FirebaseAuth
 import com.example.auth.AuthViewModel
 import com.example.notifications.NotificationHelper
@@ -140,11 +144,12 @@ fun MainScreen(
     }
 
     val selectedWorkspaceId by mainAppViewModel.selectedWorkspaceId.collectAsStateWithLifecycle()
-
     val workspaces by mainAppViewModel.workspaces.collectAsStateWithLifecycle()
+    val allTasks by mainAppViewModel.tasks.collectAsStateWithLifecycle()
+    val allNotes by mainAppViewModel.notes.collectAsStateWithLifecycle()
 
     val currentWorkspaceName = remember(selectedWorkspaceId, workspaces) {
-        workspaces.find { it.id == selectedWorkspaceId }?.name ?: "RESEARCH HUB"
+        workspaces.find { it.id == selectedWorkspaceId }?.name ?: "Personal Hub"
     }
 
     val activeTier by mainAppViewModel.activeSubscriptionTier.collectAsStateWithLifecycle()
@@ -172,68 +177,250 @@ fun MainScreen(
                 var showWorkspaceDropdown by remember { mutableStateOf(false) }
 
                 Box {
-                    Row(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
-                            .clickable { showWorkspaceDropdown = true }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    val activeWorkspace = workspaces.find { it.id == selectedWorkspaceId }
+                    val activeIcon = activeWorkspace?.let { getWorkspaceIcon(it.iconName) } ?: Icons.Default.Folder
+                    val accentColor = remember(activeWorkspace?.colorHex) {
+                        try {
+                            if (!activeWorkspace?.colorHex.isNullOrBlank()) Color(android.graphics.Color.parseColor(activeWorkspace?.colorHex)) else null
+                        } catch (e: Exception) { null }
+                    } ?: MaterialTheme.colorScheme.primary
+
+                    Surface(
+                        onClick = { showWorkspaceDropdown = true },
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                        tonalElevation = 2.dp,
+                        shadowElevation = 1.dp,
+                        modifier = Modifier.testTag("workspace_selector_button")
                     ) {
-                        val activeWorkspace = workspaces.find { it.id == selectedWorkspaceId }
-                        val activeIcon = activeWorkspace?.let { getWorkspaceIcon(it.iconName) } ?: Icons.Default.Folder
-                        Icon(activeIcon, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                        Text(currentWorkspaceName.uppercase(), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(accentColor.copy(alpha = 0.15f), RoundedCornerShape(7.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = activeIcon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = accentColor
+                                )
+                            }
+                            Text(
+                                text = currentWorkspaceName,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 140.dp)
+                            )
+                            Icon(
+                                imageVector = if (showWorkspaceDropdown) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Switch workspace",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     DropdownMenu(
                         expanded = showWorkspaceDropdown,
-                        onDismissRequest = { showWorkspaceDropdown = false }
+                        onDismissRequest = { showWorkspaceDropdown = false },
+                        shape = RoundedCornerShape(18.dp),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 6.dp,
+                        shadowElevation = 10.dp,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                        modifier = Modifier.widthIn(min = 280.dp, max = 320.dp)
                     ) {
+                        // Header
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Layers,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    "WORKSPACES",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                            ) {
+                                Text(
+                                    text = "${workspaces.size}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
                         if (workspaces.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text("No workspaces") },
-                                onClick = { showWorkspaceDropdown = false }
-                            )
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                color = Color.Transparent
+                            ) {
+                                Text(
+                                    "No workspaces found",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
                         } else {
                             workspaces.forEach { workspace ->
                                 val isSelected = workspace.id == selectedWorkspaceId
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            workspace.name,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = getWorkspaceIcon(workspace.iconName),
-                                            contentDescription = null,
-                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    },
+                                val wsTaskCount = allTasks.count { it.workspaceId == workspace.id }
+                                val wsNoteCount = allNotes.count { it.workspaceId == workspace.id }
+                                val wsColor = remember(workspace.colorHex) {
+                                    try {
+                                        if (workspace.colorHex.isNotBlank()) Color(android.graphics.Color.parseColor(workspace.colorHex)) else null
+                                    } catch (e: Exception) { null }
+                                } ?: MaterialTheme.colorScheme.primary
+
+                                Surface(
                                     onClick = {
                                         mainAppViewModel.selectWorkspace(workspace.id)
                                         showWorkspaceDropdown = false
                                         if (currentRoute == "workspaces") {
                                             navController.navigate("tasks")
                                         }
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else Color.Transparent,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        .testTag("workspace_item_${workspace.id}")
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 10.dp, vertical = 9.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .background(
+                                                    if (isSelected) wsColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant,
+                                                    RoundedCornerShape(9.dp)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = getWorkspaceIcon(workspace.iconName),
+                                                contentDescription = null,
+                                                tint = if (isSelected) wsColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(17.dp)
+                                            )
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = workspace.name,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                ),
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = "$wsTaskCount tasks · $wsNoteCount notes",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                        }
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = "Selected",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
-                                )
+                                }
                             }
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        DropdownMenuItem(
-                            text = { Text("Manage Workspaces...", fontWeight = FontWeight.Medium) },
-                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp)) },
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Surface(
                             onClick = {
                                 showWorkspaceDropdown = false
                                 navController.navigate("workspaces")
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.Transparent,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                .testTag("manage_workspaces_menu_item")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(15.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    "Manage Workspaces...",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
                             }
-                        )
+                        }
                     }
                 }
                 Row(
@@ -241,146 +428,357 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Box {
-                        Box(
+                        Surface(
+                            onClick = { showProfileMenu = true },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.5.dp, if (activeTier != "FREE") Color(0xFFFFB300) else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                            shadowElevation = 2.dp,
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
-                                .clip(RoundedCornerShape(18.dp))
-                                .clickable { showProfileMenu = true },
-                            contentAlignment = Alignment.Center
+                                .testTag("profile_menu_button")
                         ) {
                             val photoUrl = remember { FirebaseAuth.getInstance().currentUser?.photoUrl?.toString() }
                             if (photoUrl != null) {
                                 AsyncImage(
                                     model = photoUrl,
                                     contentDescription = "Profile",
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillMaxSize().clip(CircleShape)
                                 )
                             } else {
-                                Icon(Icons.Default.Person, contentDescription = "Profile", tint = MaterialTheme.colorScheme.onSurface)
+                                Box(
+                                    modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = "Profile",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
+
                         if (activeTier != "FREE") {
-                            Icon(
-                                imageVector = Icons.Default.WorkspacePremium,
-                                contentDescription = "Premium Account",
-                                tint = Color(0xFFFFB300),
+                            Box(
                                 modifier = Modifier
                                     .size(16.dp)
                                     .align(Alignment.BottomEnd)
-                                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                                    .padding(1.dp)
-                            )
+                                    .background(Color(0xFFFFB300), CircleShape)
+                                    .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Premium Account",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                            }
                         }
+
                         DropdownMenu(
                             expanded = showProfileMenu,
-                            onDismissRequest = { showProfileMenu = false }
+                            onDismissRequest = { showProfileMenu = false },
+                            shape = RoundedCornerShape(18.dp),
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 6.dp,
+                            shadowElevation = 10.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                            modifier = Modifier.widthIn(min = 290.dp, max = 330.dp)
                         ) {
                             val currentUser = remember { FirebaseAuth.getInstance().currentUser }
-                            if (currentUser != null) {
-                                val currentName = remember(currentUser) {
-                                    currentUser.displayName ?: "Guest ${currentUser.uid.take(4).uppercase()}"
-                                }
-                                val currentEmail = remember(currentUser) {
-                                    if (!currentUser.email.isNullOrBlank()) currentUser.email!! else "guest_${currentUser.uid.take(8)}@kalyntflow.app"
-                                }
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(currentName, fontWeight = FontWeight.Bold)
-                                            Text(
-                                                text = currentEmail,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.secondary
-                                            )
-                                        }
-                                    },
-                                    onClick = { },
-                                    leadingIcon = {
-                                        val url = currentUser.photoUrl?.toString()
-                                        if (url != null) {
-                                            AsyncImage(
-                                                model = url,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(24.dp).clip(RoundedCornerShape(12.dp))
-                                            )
-                                        } else {
-                                            Icon(Icons.Default.Person, contentDescription = null)
-                                        }
-                                    }
-                                )
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            val currentName = remember(currentUser) {
+                                currentUser?.displayName?.takeIf { it.isNotBlank() } ?: "User ${currentUser?.uid?.take(4)?.uppercase() ?: ""}"
                             }
-                            DropdownMenuItem(
-                                text = { 
-                                    Column {
-                                        Text("Subscription", fontWeight = FontWeight.Bold)
-                                        Text(
-                                            text = when(activeTier) {
-                                                "PRO_MONTHLY" -> "Pro Monthly"
-                                                "PRO_ANNUAL" -> "Pro Annual"
-                                                else -> "Free Tier"
-                                            },
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
+                            val currentEmail = remember(currentUser) {
+                                if (!currentUser?.email.isNullOrBlank()) currentUser!!.email!! else "Signed in with Google"
+                            }
+
+                            // User Profile Header
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                val url = currentUser?.photoUrl?.toString()
+                                if (url != null) {
+                                    AsyncImage(
+                                        model = url,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Person,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
-                                },
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = currentName,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = currentEmail,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            // Subscription Status Banner
+                            val isPro = activeTier != "FREE"
+                            val subTierLabel = when (activeTier) {
+                                "PRO_MONTHLY" -> "Pro Monthly"
+                                "PRO_ANNUAL" -> "Pro Annual"
+                                else -> "Free Plan"
+                            }
+
+                            Surface(
                                 onClick = {
                                     showProfileMenu = false
                                     navController.navigate("pricing")
                                 },
-                                leadingIcon = { 
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isPro) Color(0xFFFFF8E1) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = BorderStroke(1.dp, if (isPro) Color(0xFFFFD54F) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                                    .testTag("subscription_status_item")
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(
+                                                if (isPro) Color(0xFFFFB300).copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                                RoundedCornerShape(9.dp)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isPro) Icons.Default.WorkspacePremium else Icons.Default.Stars,
+                                            contentDescription = null,
+                                            tint = if (isPro) Color(0xFFE65100) else MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = subTierLabel,
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = if (isPro) Color(0xFF5D4037) else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (isPro) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = Color(0xFFFFB300)
+                                                ) {
+                                                    Text(
+                                                        "ACTIVE",
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                                        color = Color.White,
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = if (isPro) "Cloud sync & unlimited AI" else "Tap to unlock Pro features",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (isPro) Color(0xFF795548) else MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+
                                     Icon(
-                                        imageVector = Icons.Default.WorkspacePremium, 
-                                        contentDescription = null, 
-                                        tint = if (activeTier != "FREE") Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant
-                                    ) 
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = if (isPro) Color(0xFFE65100) else MaterialTheme.colorScheme.secondary
+                                    )
                                 }
+                            }
+
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
-                            DropdownMenuItem(
-                                text = { Text("Privacy & Account Safety", fontWeight = FontWeight.SemiBold) },
+
+                            // Privacy & Account Safety
+                            Surface(
                                 onClick = {
                                     showProfileMenu = false
                                     showPrivacySafetyDialog = true
                                 },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Shield,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color.Transparent,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .testTag("privacy_safety_menu_item")
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Shield,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(15.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            "Privacy & Account Safety",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            "Review policies & data handling",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
                                 }
-                            )
-                            DropdownMenuItem(
-                                text = { 
-                                    Text(
-                                        "Delete Account & Wipe Data", 
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.error
-                                    ) 
-                                },
+                            }
+
+                            // Delete Account
+                            Surface(
                                 onClick = {
                                     showProfileMenu = false
                                     showDeleteAccountConfirm = true
                                 },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.DeleteForever,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color.Transparent,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .testTag("delete_account_menu_item")
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteForever,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(15.dp),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            "Delete Account & Wipe Data",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                        Text(
+                                            "Permanent deletion request",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                                        )
+                                    }
                                 }
+                            }
+
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            DropdownMenuItem(
-                                text = { Text("Sign Out") },
+
+                            // Sign Out
+                            Surface(
                                 onClick = {
                                     showProfileMenu = false
                                     authViewModel.signOut()
                                 },
-                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) }
-                            )
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color.Transparent,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .testTag("sign_out_menu_item")
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(15.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        "Sign Out",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -560,12 +958,19 @@ fun MainScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        val policyUrl = "https://hermes-lekkas.github.io/Kalynt-Flow/"
                         OutlinedButton(
                             onClick = {
                                 try {
-                                    uriHandler.openUri("https://hermes-lekkas.github.io/Kalynt-Flow/")
+                                    uriHandler.openUri(policyUrl)
                                 } catch (e: Exception) {
-                                    // Fallback
+                                    try {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(policyUrl))
+                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
+                                    } catch (ex: Exception) {
+                                        Toast.makeText(context, "Opening Privacy Policy...", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             },
                             modifier = Modifier.weight(1f),
@@ -579,9 +984,15 @@ fun MainScreen(
                         OutlinedButton(
                             onClick = {
                                 try {
-                                    uriHandler.openUri("https://hermes-lekkas.github.io/Kalynt-Flow/")
+                                    uriHandler.openUri(policyUrl)
                                 } catch (e: Exception) {
-                                    // Fallback
+                                    try {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(policyUrl))
+                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
+                                    } catch (ex: Exception) {
+                                        Toast.makeText(context, "Opening Terms of Service...", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             },
                             modifier = Modifier.weight(1f),

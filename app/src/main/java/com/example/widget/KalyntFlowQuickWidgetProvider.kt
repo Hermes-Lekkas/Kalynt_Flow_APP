@@ -10,13 +10,14 @@ import android.net.Uri
 import android.widget.RemoteViews
 import com.example.MainActivity
 import com.example.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class KalyntFlowQuickWidgetProvider : AppWidgetProvider() {
-
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        updateAllWidgets(context)
-    }
 
     override fun onUpdate(
         context: Context,
@@ -29,6 +30,9 @@ class KalyntFlowQuickWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        private val updateScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private var debounceJob: Job? = null
+
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -111,8 +115,14 @@ class KalyntFlowQuickWidgetProvider : AppWidgetProvider() {
                 val componentName = ComponentName(context, KalyntFlowQuickWidgetProvider::class.java)
                 val ids = appWidgetManager.getAppWidgetIds(componentName)
                 if (ids != null && ids.isNotEmpty()) {
-                    for (id in ids) {
-                        updateAppWidget(context, appWidgetManager, id)
+                    synchronized(this) {
+                        debounceJob?.cancel()
+                        debounceJob = updateScope.launch {
+                            delay(150)
+                            for (id in ids) {
+                                updateAppWidget(context, appWidgetManager, id)
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {

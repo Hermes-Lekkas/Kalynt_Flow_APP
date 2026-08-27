@@ -101,6 +101,9 @@ interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY timestamp DESC")
     suspend fun getAllNotesSync(): List<NoteEntity>
 
+    @Query("SELECT COUNT(*) FROM notes")
+    suspend fun getNotesCountSync(): Int
+
     @Query("DELETE FROM notes")
     suspend fun deleteAllNotes()
 
@@ -169,6 +172,9 @@ interface CommentDao {
 
     @Delete
     suspend fun deleteComment(comment: CommentEntity)
+
+    @Query("DELETE FROM comments WHERE id = :commentId")
+    suspend fun deleteCommentById(commentId: String)
 
     @Query("DELETE FROM comments WHERE workspaceId = :workspaceId OR targetId = :workspaceId")
     suspend fun deleteCommentsForWorkspace(workspaceId: String)

@@ -268,10 +268,17 @@ fun AuthScreen(authViewModel: AuthViewModel) {
                         ),
                         modifier = Modifier
                             .clickable {
+                                val url = "https://hermes-lekkas.github.io/Kalynt-Flow/"
                                 try {
-                                    uriHandler.openUri("https://hermes-lekkas.github.io/Kalynt-Flow/terms-of-service.html")
+                                    uriHandler.openUri(url)
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Opening Terms of Service...", Toast.LENGTH_SHORT).show()
+                                    try {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
+                                    } catch (ex: Exception) {
+                                        Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
                             .testTag("auth_terms_of_service_link")
@@ -290,10 +297,17 @@ fun AuthScreen(authViewModel: AuthViewModel) {
                         ),
                         modifier = Modifier
                             .clickable {
+                                val url = "https://hermes-lekkas.github.io/Kalynt-Flow/"
                                 try {
-                                    uriHandler.openUri("https://hermes-lekkas.github.io/Kalynt-Flow/privacy-policy.html")
+                                    uriHandler.openUri(url)
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Opening Privacy Policy...", Toast.LENGTH_SHORT).show()
+                                    try {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
+                                    } catch (ex: Exception) {
+                                        Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
                             .testTag("auth_privacy_policy_link")

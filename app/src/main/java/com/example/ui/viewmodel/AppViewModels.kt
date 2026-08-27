@@ -36,6 +36,7 @@ sealed interface UserProfileState {
     data class Success(val profile: com.example.data.local.UserProfileEntity?) : UserProfileState
 }
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class MainAppViewModel(application: Application) : AndroidViewModel(application) {
     val repository = AppRepository(application)
     val firestoreTeamRepo = FirestoreTeamRepository(application)
@@ -63,7 +64,6 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         awaitClose { auth.removeAuthStateListener(authListener) }
     }
     
-    @kotlinx.coroutines.ExperimentalCoroutinesApi
     val userProfileState: StateFlow<UserProfileState> = userEmailFlow
         .flatMapLatest { email ->
             if (email.isNotBlank()) {
@@ -367,7 +367,10 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             workspaces.collect { list ->
-                if (_selectedWorkspaceId.value == null && list.isNotEmpty()) {
+                val currentId = _selectedWorkspaceId.value
+                if (list.isEmpty()) {
+                    _selectedWorkspaceId.value = null
+                } else if (currentId == null || list.none { it.id == currentId }) {
                     _selectedWorkspaceId.value = list.first().id
                 }
             }
@@ -393,7 +396,7 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         // Real-time synchronization for blocked users across devices
         viewModelScope.launch {
             userEmailFlow.collect { email ->
-                if (email.isNotBlank()) {
+                if (email.isNotBlank() && !email.contains("guest") && !email.contains("kalyntflow.app")) {
                     try {
                         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                         db.collection("users").document(email)
@@ -426,7 +429,7 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
                                 }
                             }
                     } catch (e: Exception) {
-                        android.util.Log.e("AppViewModels", "Failed to sync blocked users listener", e)
+                        android.util.Log.w("AppViewModels", "Notice: Blocked users listener skipped: ${e.message}")
                     }
                 }
             }
@@ -491,35 +494,56 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
 
     fun addWorkspace(name: String, colorHex: String = "#1D1D1B", iconName: String = "Folder") {
         viewModelScope.launch {
-            val ws = repository.addWorkspace(name, colorHex, iconName)
-            val firebaseUser = FirebaseAuth.getInstance().currentUser
-            if (firebaseUser != null) {
-                val email = if (!firebaseUser.email.isNullOrBlank()) firebaseUser.email!! else "guest_${firebaseUser.uid.take(8)}@kalyntflow.app"
-                val photoUrl = firebaseUser.photoUrl?.toString() ?: ""
+            try {
+                val ws = repository.addWorkspace(name, colorHex, iconName)
+                val firebaseUser = FirebaseAuth.getInstance().currentUser
+                val email = if (firebaseUser != null && !firebaseUser.email.isNullOrBlank()) {
+                    firebaseUser.email!!
+                } else if (firebaseUser != null) {
+                    "guest_${firebaseUser.uid.take(8)}@kalyntflow.app"
+                } else {
+                    "guest@kalyntflow.app"
+                }
+                val displayName = firebaseUser?.displayName ?: "Guest User"
+                val photoUrl = firebaseUser?.photoUrl?.toString() ?: ""
                 val member = WorkspaceMemberEntity(
                     workspaceId = ws.id,
-                    name = firebaseUser.displayName ?: "Project Owner",
+                    name = displayName,
                     email = email,
                     role = "Owner",
                     status = "Active",
                     avatarUrl = photoUrl
                 )
                 firestoreTeamRepo.addMember(ws.id, member)
+                _selectedWorkspaceId.value = ws.id
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to add workspace", e)
+                uiMessage.value = "Failed to create workspace."
             }
         }
     }
 
     fun updateWorkspace(workspace: WorkspaceEntity) {
         viewModelScope.launch {
-            repository.updateWorkspace(workspace)
+            try {
+                repository.updateWorkspace(workspace)
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to update workspace", e)
+                uiMessage.value = "Failed to update workspace."
+            }
         }
     }
 
     fun deleteWorkspace(workspace: WorkspaceEntity) {
         viewModelScope.launch {
-            repository.deleteWorkspace(workspace)
-            if (_selectedWorkspaceId.value == workspace.id) {
-                _selectedWorkspaceId.value = null
+            try {
+                if (_selectedWorkspaceId.value == workspace.id) {
+                    val remaining = workspaces.value.filter { it.id != workspace.id }
+                    _selectedWorkspaceId.value = remaining.firstOrNull()?.id
+                }
+                repository.deleteWorkspace(workspace)
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to delete workspace", e)
             }
         }
     }
@@ -533,7 +557,12 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         dueDateMs: Long = System.currentTimeMillis()
     ) {
         viewModelScope.launch {
-            repository.addTask(title, description, workspaceId, assignedToName, assignedToEmail, dueDateMs)
+            try {
+                repository.addTask(title, description, workspaceId, assignedToName, assignedToEmail, dueDateMs)
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModels", "Failed to add task", e)
+                uiMessage.value = "Failed to add task."
+            }
         }
     }
 
@@ -781,8 +810,9 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
             return
         }
         val currentEmail = FirebaseAuth.getInstance().currentUser?.email ?: ""
+        val isGuest = currentEmail.isBlank() || currentEmail.contains("guest") || currentEmail.contains("kalyntflow.app")
         val currentMember = allWorkspaceMembers.value.find { it.email == currentEmail && it.workspaceId == member.workspaceId }
-        val isOwnerOrAdmin = currentMember?.role == "Owner" || currentMember?.role == "Admin"
+        val isOwnerOrAdmin = isGuest || currentMember?.role == "Owner" || currentMember?.role == "Admin"
         val isSelf = member.email == currentEmail
         if (!isOwnerOrAdmin && !isSelf && currentEmail.isNotBlank()) {
             uiMessage.value = "Only workspace owners and admins can remove members."
@@ -790,50 +820,64 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             try {
-                // 1. Remove member record
+                // 1. Remove member record locally and remotely
                 firestoreTeamRepo.removeMember(member.workspaceId, member.id)
 
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                if (!isGuest) {
+                    val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
 
-                // 2. Query workspace directly from Firestore to ensure freshness
-                val wsDocRef = db.collection("workspaces").document(member.workspaceId)
-                val wsDoc = wsDocRef.get().await()
-                if (wsDoc.exists()) {
-                    val currentEmails = wsDoc.get("memberEmails") as? List<String> ?: emptyList()
-                    if (currentEmails.contains(member.email)) {
-                        val updatedEmails = currentEmails.filter { it != member.email }
-                        wsDocRef.update("memberEmails", updatedEmails).await()
+                    // 2. Query workspace directly from Firestore to ensure freshness
+                    try {
+                        val wsDocRef = db.collection("workspaces").document(member.workspaceId)
+                        val wsDoc = wsDocRef.get().await()
+                        if (wsDoc.exists()) {
+                            val currentEmails = wsDoc.get("memberEmails") as? List<String> ?: emptyList()
+                            if (currentEmails.contains(member.email)) {
+                                val updatedEmails = currentEmails.filter { it != member.email }
+                                wsDocRef.update("memberEmails", updatedEmails).await()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("AppViewModels", "Notice: Firestore workspace member removal skipped: ${e.message}")
                     }
-                }
 
-                // 3. Query all tasks of this workspace directly from Firestore to revoke access
-                val tasksSnap = db.collection("tasks")
-                    .whereEqualTo("workspaceId", member.workspaceId)
-                    .get()
-                    .await()
-                for (doc in tasksSnap.documents) {
-                    val currentEmails = doc.get("memberEmails") as? List<String> ?: emptyList()
-                    if (currentEmails.contains(member.email)) {
-                        val updatedEmails = currentEmails.filter { it != member.email }
-                        doc.reference.update("memberEmails", updatedEmails).await()
+                    // 3. Query all tasks of this workspace directly from Firestore to revoke access
+                    try {
+                        val tasksSnap = db.collection("tasks")
+                            .whereEqualTo("workspaceId", member.workspaceId)
+                            .get()
+                            .await()
+                        for (doc in tasksSnap.documents) {
+                            val currentEmails = doc.get("memberEmails") as? List<String> ?: emptyList()
+                            if (currentEmails.contains(member.email)) {
+                                val updatedEmails = currentEmails.filter { it != member.email }
+                                doc.reference.update("memberEmails", updatedEmails).await()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("AppViewModels", "Notice: Firestore task member removal skipped: ${e.message}")
                     }
-                }
 
-                // 4. Query all notes of this workspace directly from Firestore to revoke access
-                val notesSnap = db.collection("notes")
-                    .whereEqualTo("workspaceId", member.workspaceId)
-                    .get()
-                    .await()
-                for (doc in notesSnap.documents) {
-                    val currentEmails = doc.get("memberEmails") as? List<String> ?: emptyList()
-                    if (currentEmails.contains(member.email)) {
-                        val updatedEmails = currentEmails.filter { it != member.email }
-                        doc.reference.update("memberEmails", updatedEmails).await()
+                    // 4. Query all notes of this workspace directly from Firestore to revoke access
+                    try {
+                        val notesSnap = db.collection("notes")
+                            .whereEqualTo("workspaceId", member.workspaceId)
+                            .get()
+                            .await()
+                        for (doc in notesSnap.documents) {
+                            val currentEmails = doc.get("memberEmails") as? List<String> ?: emptyList()
+                            if (currentEmails.contains(member.email)) {
+                                val updatedEmails = currentEmails.filter { it != member.email }
+                                doc.reference.update("memberEmails", updatedEmails).await()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("AppViewModels", "Notice: Firestore note member removal skipped: ${e.message}")
                     }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("AppViewModels", "Failed to remove workspace member", e)
-                uiMessage.value = "Failed to remove member. Please check your connection."
+                uiMessage.value = "Failed to remove member."
             }
         }
     }
@@ -926,7 +970,6 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    @kotlinx.coroutines.ExperimentalCoroutinesApi
     val typingUsers: StateFlow<List<String>> = _selectedWorkspaceId.flatMapLatest { id ->
         if (id == null) kotlinx.coroutines.flow.flowOf(emptyList()) else firestoreTeamRepo.getTypingUsers(id)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

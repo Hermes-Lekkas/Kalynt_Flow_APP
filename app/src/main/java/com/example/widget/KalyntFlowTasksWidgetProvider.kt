@@ -11,22 +11,17 @@ import android.widget.RemoteViews
 import com.example.MainActivity
 import com.example.R
 import com.example.data.local.AppDatabase
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class KalyntFlowTasksWidgetProvider : AppWidgetProvider() {
 
     private val widgetScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        updateAllWidgets(context)
-    }
 
     override fun onUpdate(
         context: Context,
@@ -48,11 +43,14 @@ class KalyntFlowTasksWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        private val updateScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private var debounceJob: Job? = null
+
         suspend fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
-        ) {
+        ) = withContext(Dispatchers.IO) {
             val views = RemoteViews(context.packageName, R.layout.widget_tasks_summary)
 
             // 1. Header click - Open Kalynt Flow to Tasks
@@ -82,36 +80,12 @@ class KalyntFlowTasksWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.btn_widget_header_add_task, addTaskPendingIntent)
 
-            // 3. Query Database for Tasks Count
+            // 3. Query Database for Tasks Count (Local only - NO network loops)
             try {
                 val db = AppDatabase.getDatabase(context)
-                var activeTasks = db.taskDao().getActiveTasksSync()
-                var totalCount = db.taskDao().getActiveTasksCountSync()
-
-                if (activeTasks.isEmpty()) {
-                    try {
-                        val auth = FirebaseAuth.getInstance()
-                        val user = auth.currentUser
-                        val email = if (user != null) {
-                            if (!user.email.isNullOrBlank()) user.email else "guest_${user.uid.take(8)}@kalyntflow.app"
-                        } else null
-                        if (email != null) {
-                            val snap = FirebaseFirestore.getInstance()
-                                .collection("tasks")
-                                .whereArrayContains("memberEmails", email)
-                                .get()
-                                .await()
-                            val cloudTasks = snap.toObjects(com.example.data.local.TaskEntity::class.java)
-                            if (cloudTasks.isNotEmpty()) {
-                                db.taskDao().syncAllTasks(cloudTasks)
-                                activeTasks = db.taskDao().getActiveTasksSync()
-                                totalCount = db.taskDao().getActiveTasksCountSync()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        // ignore network fallback errors
-                    }
-                }
+                val activeTasksCount = db.taskDao().getActiveTasksCountSync()
+                val notesCount = db.noteDao().getNotesCountSync()
+                val totalCount = activeTasksCount + notesCount
 
                 views.setTextViewText(
                     R.id.widget_task_count_badge,
@@ -152,10 +126,13 @@ class KalyntFlowTasksWidgetProvider : AppWidgetProvider() {
                 val componentName = ComponentName(context, KalyntFlowTasksWidgetProvider::class.java)
                 val ids = appWidgetManager.getAppWidgetIds(componentName)
                 if (ids != null && ids.isNotEmpty()) {
-                    val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-                    scope.launch {
-                        for (id in ids) {
-                            updateAppWidget(context, appWidgetManager, id)
+                    synchronized(this) {
+                        debounceJob?.cancel()
+                        debounceJob = updateScope.launch {
+                            delay(150) // Debounce rapid bursts
+                            for (id in ids) {
+                                updateAppWidget(context, appWidgetManager, id)
+                            }
                         }
                     }
                 }
