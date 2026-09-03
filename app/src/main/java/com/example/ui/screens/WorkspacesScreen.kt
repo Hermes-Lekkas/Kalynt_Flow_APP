@@ -22,14 +22,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.data.local.WorkspaceEntity
 import com.example.data.local.WorkspaceMemberEntity
+import com.example.ui.components.ReviewerUnlockDialog
 import com.example.ui.viewmodel.MainAppViewModel
 
 @Composable
 fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) {
+    val context = LocalContext.current
     val workspaces by viewModel.workspaces.collectAsStateWithLifecycle()
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val notes by viewModel.notes.collectAsStateWithLifecycle()
@@ -38,6 +42,16 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
     
     var showAddDialog by remember { mutableStateOf(false) }
     var showProUpgradeDialog by remember { mutableStateOf(false) }
+    var showReviewerAuthDialog by remember { mutableStateOf(false) }
+
+    if (showReviewerAuthDialog) {
+        ReviewerUnlockDialog(
+            onDismissRequest = { showReviewerAuthDialog = false },
+            onUnlockSuccess = {
+                viewModel.unlockAllFeaturesForTesting()
+            }
+        )
+    }
     
     var workspaceToDelete by remember { mutableStateOf<WorkspaceEntity?>(null) }
     var workspaceToCustomizeIcon by remember { mutableStateOf<WorkspaceEntity?>(null) }
@@ -230,14 +244,26 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        showProUpgradeDialog = false
-                        navController.navigate("pricing")
-                    },
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("Upgrade for €6.99 / mo", fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showProUpgradeDialog = false
+                            showReviewerAuthDialog = true
+                        },
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("🧪 Test Unlock", fontWeight = FontWeight.SemiBold)
+                    }
+
+                    Button(
+                        onClick = {
+                            showProUpgradeDialog = false
+                            navController.navigate("pricing")
+                        },
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Upgrade", fontWeight = FontWeight.Bold)
+                    }
                 }
             },
             dismissButton = {

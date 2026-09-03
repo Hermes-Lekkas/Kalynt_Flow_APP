@@ -11,6 +11,7 @@ import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
@@ -80,51 +81,56 @@ class AuthViewModel(context: Context? = null) : ViewModel() {
     }
 
     suspend fun signInWithGoogle(context: Context, webClientId: String) {
+        val fallbackClientId = "1009661461742-tjuv4hbhfo41ficvdur5h2ho8bteu5ai.apps.googleusercontent.com"
         val clientId = webClientId.ifBlank {
             try {
                 val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-                if (resId != 0) context.getString(resId) else ""
-            } catch (e: Exception) { "" }
-        }
+                if (resId != 0) context.getString(resId) else fallbackClientId
+            } catch (e: Exception) { fallbackClientId }
+        }.ifBlank { fallbackClientId }
+
         val firebaseAuth = auth
         if (firebaseAuth == null) {
             _authState.value = AuthState.Error("Firebase is not initialized. Make sure google-services.json is configured.")
             return
         }
         _authState.value = AuthState.Loading
+
         try {
-            val credentialManager = CredentialManager.create(context)
-            val rawNonce = UUID.randomUUID().toString()
-            val bytes = rawNonce.toByteArray()
-            val md = MessageDigest.getInstance("SHA-256")
-            val digest = md.digest(bytes)
-            val hashedNonce = digest.fold("") { str, it -> str + "%02x".format(it) }
+            // Find activity to ensure window token is valid for the Google Account Picker UI
+            val activity = findActivity(context) ?: (context as? android.app.Activity)
+            val uiContext = activity ?: context
+            val credentialManager = CredentialManager.create(uiContext)
+
+            val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId)
+                .build()
 
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(false)
                 .setServerClientId(clientId)
-                .setNonce(hashedNonce)
+                .setAutoSelectEnabled(false)
                 .build()
 
             val request = GetCredentialRequest.Builder()
+                .addCredentialOption(signInWithGoogleOption)
                 .addCredentialOption(googleIdOption)
                 .build()
 
-            val result = credentialManager.getCredential(context = context, request = request)
+            val result = credentialManager.getCredential(context = uiContext, request = request)
             handleSignInResult(result)
         } catch (e: GetCredentialCancellationException) {
             Log.i("AuthViewModel", "Google Sign-In prompt canceled by user")
             _authState.value = AuthState.Unauthenticated
         } catch (e: NoCredentialException) {
             Log.w("AuthViewModel", "No Google account available on device or emulator", e)
-            _authState.value = AuthState.Error("No Google Account found on this device or emulator. Please add a Google Account in device Settings, or tap 'Explore as Guest' below.")
+            _authState.value = AuthState.Error("No Google Account detected. Please ensure a Google Account is added under device Settings, or tap 'Explore as Guest' below.")
         } catch (e: GetCredentialException) {
             Log.e("AuthViewModel", "CredentialManager exception: ${e.type} - ${e.message}", e)
             val msg = e.message ?: "Google Sign-In is unavailable on this device."
             if (msg.contains("canceled", ignoreCase = true) || msg.contains("cancelled", ignoreCase = true)) {
                 _authState.value = AuthState.Unauthenticated
             } else {
-                _authState.value = AuthState.Error("Google Sign-In failed: $msg. You can tap 'Explore as Guest' to proceed instantly.")
+                _authState.value = AuthState.Error("Google Sign-In notice: $msg. You can tap 'Explore as Guest' to proceed instantly.")
             }
         } catch (e: Exception) {
             Log.e("AuthViewModel", "Sign in failed with exception", e)
@@ -135,6 +141,15 @@ class AuthViewModel(context: Context? = null) : ViewModel() {
                 _authState.value = AuthState.Error("Google Sign-In notice: $msg. You can tap 'Explore as Guest' to proceed instantly.")
             }
         }
+    }
+
+    private fun findActivity(context: Context): android.app.Activity? {
+        var current = context
+        while (current is android.content.ContextWrapper) {
+            if (current is android.app.Activity) return current
+            current = current.baseContext
+        }
+        return null
     }
 
     private suspend fun handleSignInResult(result: GetCredentialResponse) {

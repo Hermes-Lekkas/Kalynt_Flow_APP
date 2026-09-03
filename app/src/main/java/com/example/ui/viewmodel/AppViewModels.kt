@@ -244,13 +244,27 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         billingManager.refreshPurchases()
     }
 
-    /** Legacy helper kept for non-billing dev/testing scenarios. */
+    /** Unlock all features (Pro Annual) for Play Store reviewers and QA testing */
+    fun unlockAllFeaturesForTesting() {
+        billingManager.setTestProTier("PRO_ANNUAL")
+    }
+
+    /** Reset active tier back to Free */
+    fun resetTierToFree() {
+        billingManager.resetTierToFree()
+    }
+
+    /** Toggle between Free and Pro Annual for quick testing */
+    fun toggleTestProTier() {
+        billingManager.toggleTestProTier()
+    }
+
+    /** Update subscription tier (used for testing / sandbox scenarios) */
     fun updateSubscriptionTier(tier: String) {
-        // No-op in production — tier is managed by Play Billing.
-        // Only used in debug/test builds.
         if (tier == "FREE") {
-            // We cannot programmatically cancel a Play subscription;
-            // the user must cancel via Play Store.
+            billingManager.resetTierToFree()
+        } else {
+            billingManager.setTestProTier(tier)
         }
     }
 

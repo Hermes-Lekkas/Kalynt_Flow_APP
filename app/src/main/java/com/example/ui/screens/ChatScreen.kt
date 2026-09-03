@@ -46,12 +46,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.border
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import com.example.data.AiAction
 import com.example.data.ChatMessage
 import com.example.data.GeminiRepository
 import org.json.JSONObject
+import com.example.ui.components.ReviewerUnlockDialog
 import com.example.ui.components.SignInRequiredPlaceholder
 import com.example.ui.viewmodel.MainAppViewModel
 import com.example.ui.viewmodel.UserProfileState
@@ -68,6 +70,7 @@ fun ChatScreen(
     viewModel: MainAppViewModel,
     onSignInClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val currentUser = remember { FirebaseAuth.getInstance().currentUser }
     val isGuest = remember(currentUser) {
         currentUser == null || currentUser.isAnonymous || currentUser.email.isNullOrBlank() || currentUser.email?.contains("guest") == true || currentUser.email?.contains("kalyntflow.app") == true
@@ -85,6 +88,16 @@ fun ChatScreen(
 
     var inputText by remember { mutableStateOf("") }
     var isGenerating by remember { mutableStateOf(false) }
+    var showReviewerAuthDialog by remember { mutableStateOf(false) }
+
+    if (showReviewerAuthDialog) {
+        ReviewerUnlockDialog(
+            onDismissRequest = { showReviewerAuthDialog = false },
+            onUnlockSuccess = {
+                viewModel.unlockAllFeaturesForTesting()
+            }
+        )
+    }
 
     // Toggleable contexts
     var includeWorkspaces by remember { mutableStateOf(true) }
@@ -359,7 +372,32 @@ fun ChatScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = {
+                    showReviewerAuthDialog = true
+                },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Science,
+                    contentDescription = "Test Unlock",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Unlock Copilot (Reviewer Mode)",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             TextButton(onClick = { navController.popBackStack() }) {
                 Text("Go Back", color = MaterialTheme.colorScheme.secondary)

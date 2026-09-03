@@ -63,12 +63,14 @@ class BillingManager(
             }
     }
 
+    private val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+
     // -------------------------------------------------------------------------
     // Public state
     // -------------------------------------------------------------------------
 
     /** Currently active subscription tier: "FREE", "PRO_MONTHLY", "PRO_ANNUAL" */
-    private val _activeTier = MutableStateFlow("FREE")
+    private val _activeTier = MutableStateFlow(prefs.getString("active_tier", "FREE") ?: "FREE")
     val activeTier: StateFlow<String> = _activeTier.asStateFlow()
 
     /** Real [ProductDetails] keyed by SKU, so the UI can display Play Store prices */
@@ -270,6 +272,14 @@ class BillingManager(
     // -------------------------------------------------------------------------
 
     private suspend fun handlePurchaseList(purchases: List<Purchase>) {
+        if (purchases.isEmpty()) {
+            val cached = prefs.getString("active_tier", "FREE") ?: "FREE"
+            if (_activeTier.value == "FREE" && cached != "FREE") {
+                _activeTier.value = cached
+            }
+            return
+        }
+
         var highestTier = "FREE"
 
         for (purchase in purchases) {
@@ -295,6 +305,7 @@ class BillingManager(
         }
 
         _activeTier.value = highestTier
+        prefs.edit().putString("active_tier", highestTier).apply()
         Log.d(TAG, "Active billing tier resolved to: $highestTier")
     }
 
@@ -309,6 +320,33 @@ class BillingManager(
             Log.d(TAG, "Purchase acknowledged: ${purchase.orderId}")
         } else {
             Log.w(TAG, "Acknowledge failed: ${result.debugMessage}")
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Testing & Reviewer QA Sandbox Helpers
+    // -------------------------------------------------------------------------
+
+    /** Unlocks all Pro features instantly for testing/QA/Play Store review */
+    fun setTestProTier(tier: String = "PRO_ANNUAL") {
+        _activeTier.value = tier
+        prefs.edit().putString("active_tier", tier).apply()
+        Log.d(TAG, "Test Pro tier unlocked: $tier")
+    }
+
+    /** Resets tier back to Free */
+    fun resetTierToFree() {
+        _activeTier.value = "FREE"
+        prefs.edit().putString("active_tier", "FREE").apply()
+        Log.d(TAG, "Subscription tier reset to FREE")
+    }
+
+    /** Toggles between Free and Pro Annual for quick verification */
+    fun toggleTestProTier() {
+        if (_activeTier.value == "FREE") {
+            setTestProTier("PRO_ANNUAL")
+        } else {
+            resetTierToFree()
         }
     }
 

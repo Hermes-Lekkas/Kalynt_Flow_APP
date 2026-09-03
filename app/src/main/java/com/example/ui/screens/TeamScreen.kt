@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,8 +81,18 @@ fun TeamScreen(
     var showInviteDialog by remember { mutableStateOf(false) }
     var showInvitationsDialog by remember { mutableStateOf(false) }
     var showProUpgradeDialog by remember { mutableStateOf(false) }
+    var showReviewerAuthDialog by remember { mutableStateOf(false) }
     var showMembersSheet by remember { mutableStateOf(false) }
     var showReportWorkspaceUserDialog by remember { mutableStateOf(false) }
+
+    if (showReviewerAuthDialog) {
+        ReviewerUnlockDialog(
+            onDismissRequest = { showReviewerAuthDialog = false },
+            onUnlockSuccess = {
+                viewModel.unlockAllFeaturesForTesting()
+            }
+        )
+    }
     
     // Toast notification message
     var toastMessage by remember { mutableStateOf<String?>(null) }
@@ -810,19 +821,31 @@ fun TeamScreen(
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        showProUpgradeDialog = false
-                        navController.navigate("pricing")
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(0.dp)
-                ) {
-                    Text("Upgrade for €6.99 / mo", fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showProUpgradeDialog = false
+                            showReviewerAuthDialog = true
+                        },
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("🧪 Test Unlock", fontWeight = FontWeight.SemiBold)
+                    }
+
+                    Button(
+                        onClick = {
+                            showProUpgradeDialog = false
+                            navController.navigate("pricing")
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(0.dp)
+                    ) {
+                        Text("Upgrade", fontWeight = FontWeight.Bold)
+                    }
                 }
             },
             dismissButton = {
