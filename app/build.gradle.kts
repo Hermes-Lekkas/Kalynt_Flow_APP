@@ -71,7 +71,9 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
-  implementation("androidx.security:security-crypto:1.1.0-alpha06")
+  implementation("androidx.security:security-crypto:1.1.0")
+  implementation("org.java-websocket:Java-WebSocket:1.6.0")
+  implementation("com.google.zxing:core:3.5.3")
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
   // implementation(libs.accompanist.permissions)

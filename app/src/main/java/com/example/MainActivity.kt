@@ -47,13 +47,6 @@ class MainActivity : ComponentActivity() {
     
     // Proactively initialize notification channels on start
     NotificationHelper.createNotificationChannels(this)
-
-    // Request notification permission on Android 13+ if not granted yet
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      if (!PermissionHelper.hasNotificationPermission(this)) {
-        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-      }
-    }
     
     authViewModel = AuthViewModel(this)
 

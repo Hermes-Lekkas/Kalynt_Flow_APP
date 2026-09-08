@@ -17,6 +17,7 @@ Kalynt Flow is an offline-first productivity, task orchestration, knowledge base
 - **Task Management**: Checklists, subtasks, priorities, and scheduling.
 - **Rich Markdown Notes**: Formatted documentation, tags, and search.
 - **Visual Calendar**: Time-blocking and agenda view.
+- **Kalynt Desktop Companion**: Local Wi-Fi pairing with Kalynt Desktop IDE to observe and command local desktop AI agents via authenticated TLS and secure WebSockets.
 - **GitHub Integration**: Direct client-side repository, commit, and issue inspection using user-supplied Personal Access Tokens (PAT).
 - **Team Collaboration & Chat**: Real-time channels and workspace sharing.
 - **Context-Aware AI Copilot**: Automated task assistance and generative productivity tools.

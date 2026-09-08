@@ -32,7 +32,13 @@ When you choose to authenticate via Google Sign-In or Firebase Authentication:
 - **Synchronized Cloud Documents**: Your tasks, notes, calendar events, workspaces, and team channel messages are synchronized over TLS 1.3 encrypted connections with Google Cloud Firebase Firestore (`workspaces`, `tasks`, `notes`, `calendar_events`, `chat_messages`, `team_members`, `ai_reports`).
 - **Subscription Entitlements**: Google Play Billing purchase tokens and subscription statuses (Pro Monthly, Pro Annual, Lifetime Access).
 
-### C. Information We DO NOT Collect
+### D. Kalynt Desktop Companion & Local LAN P2P
+When you pair your device with Kalynt Desktop:
+- **Local Network Pairing**: Communication between your mobile device and your desktop occurs directly over your local area network (LAN) using TLS 1.3 / WSS and authenticated HTTPS requests.
+- **Companion Credentials & Tokens**: Pairing access tokens, session identifiers, and custom desktop certificate SHA-256 fingerprints are stored exclusively on-device in hardware-backed `EncryptedSharedPreferences` (AES256-GCM / MasterKey).
+- **Agent Prompts & Command Logs**: Commands dispatched to local desktop agents and resulting streaming outputs remain strictly between your device and your desktop. They are not transmitted to or stored on third-party servers.
+
+### E. Information We DO NOT Collect
 - We **do not** collect sensitive personal financial account numbers, passwords to external accounts, or biometric data.
 - We **do not** track your physical GPS location.
 - We **do not** sell, rent, or trade your personal data, workspace content, or usage activity to third-party data brokers or ad networks.

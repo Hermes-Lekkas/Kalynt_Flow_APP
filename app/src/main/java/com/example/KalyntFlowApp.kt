@@ -27,6 +27,9 @@ class KalyntFlowApp : Application() {
             )
         }
 
+        // Proactive Security & Integrity Verification (Audit Finding 10)
+        com.example.security.SecurityHardening.checkSecurityStatus(this)
+
         // Initialize Notification Channels, Daily Priority Briefing, and Background Sync
         NotificationHelper.createNotificationChannels(this)
         NotificationScheduler.scheduleDailyBriefing(this, 8, 30)
