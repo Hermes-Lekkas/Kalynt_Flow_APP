@@ -80,14 +80,18 @@ class AuthViewModel(context: Context? = null) : ViewModel() {
         }
     }
 
-    suspend fun signInWithGoogle(context: Context, webClientId: String) {
-        val fallbackClientId = "1009661461742-tjuv4hbhfo41ficvdur5h2ho8bteu5ai.apps.googleusercontent.com"
+    suspend fun signInWithGoogle(context: Context, webClientId: String = "") {
         val clientId = webClientId.ifBlank {
             try {
                 val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-                if (resId != 0) context.getString(resId) else fallbackClientId
-            } catch (e: Exception) { fallbackClientId }
-        }.ifBlank { fallbackClientId }
+                if (resId != 0) context.getString(resId) else ""
+            } catch (e: Exception) { "" }
+        }
+
+        if (clientId.isBlank()) {
+            _authState.value = AuthState.Error("Google Web Client ID is not configured. Please ensure default_web_client_id is defined in resources.")
+            return
+        }
 
         val firebaseAuth = auth
         if (firebaseAuth == null) {

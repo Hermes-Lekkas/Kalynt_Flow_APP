@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -439,8 +440,8 @@ fun AddWorkspaceDialog(
     onConfirm: (String, String) -> Unit,
     onUpgradeClick: () -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var selectedIconName by remember { mutableStateOf("Folder") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var selectedIconName by rememberSaveable { mutableStateOf("Folder") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -523,7 +524,7 @@ fun IconCustomizerDialog(
     onConfirm: (String) -> Unit,
     onUpgradeClick: () -> Unit
 ) {
-    var selectedIconName by remember { mutableStateOf(workspace.iconName) }
+    var selectedIconName by rememberSaveable { mutableStateOf(workspace.iconName) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

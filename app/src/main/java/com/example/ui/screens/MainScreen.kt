@@ -1170,10 +1170,21 @@ fun MainScreen(
                 Button(
                     onClick = {
                         isDeletingAccount = true
-                        mainAppViewModel.deleteAccountAndPersonalData(currentEmail) {
+                        mainAppViewModel.deleteAccountAndPersonalData(currentEmail) { success, requiresReauth, message ->
                             isDeletingAccount = false
                             showDeleteAccountConfirm = false
                             showPrivacySafetyDialog = false
+                            if (requiresReauth) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    message ?: "Account data wiped. Please sign in again to finalize credentials deletion.",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            } else if (!success && message != null) {
+                                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                            } else {
+                                android.widget.Toast.makeText(context, "Account and all associated data permanently deleted.", android.widget.Toast.LENGTH_SHORT).show()
+                            }
                             authViewModel.signOut()
                         }
                     },

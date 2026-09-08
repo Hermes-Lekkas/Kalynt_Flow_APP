@@ -44,17 +44,13 @@ fun AuthScreen(authViewModel: AuthViewModel) {
     val uriHandler = LocalUriHandler.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Default Web Client ID string resource with fallback
+    // Default Web Client ID string resource
     val defaultWebClientId = remember(context) {
-        val fallback = "1009661461742-tjuv4hbhfo41ficvdur5h2ho8bteu5ai.apps.googleusercontent.com"
         try {
             val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-            if (resId != 0) {
-                val str = context.getString(resId)
-                if (str.isNotBlank()) str else fallback
-            } else fallback
+            if (resId != 0) context.getString(resId) else ""
         } catch (e: Exception) {
-            fallback
+            ""
         }
     }
 

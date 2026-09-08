@@ -110,9 +110,46 @@ class GitHubRepository(private val context: Context) {
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
             } catch (retryEx: Exception) {
-                Log.e(TAG, "EncryptedSharedPreferences retry failed. Falling back to private SharedPreferences.", retryEx)
-                // 4. Safe fallback to standard private preferences so the app never crashes
-                return ctx.getSharedPreferences("github_prefs_safe", Context.MODE_PRIVATE)
+                Log.e(TAG, "EncryptedSharedPreferences retry failed. Falling back to memory-only secure session to prevent plaintext token storage on disk.", retryEx)
+                // 4. In-memory secure fallback: never write plaintext GitHub OAuth tokens to disk XML files
+                return InMemorySecureSharedPreferences()
+            }
+        }
+    }
+
+    private class InMemorySecureSharedPreferences : SharedPreferences {
+        private val memoryStore = java.util.concurrent.ConcurrentHashMap<String, Any?>()
+
+        override fun getAll(): Map<String, *> = memoryStore.toMap()
+        override fun getString(key: String?, defValue: String?): String? = memoryStore[key] as? String ?: defValue
+        override fun getStringSet(key: String?, defValues: Set<String>?): Set<String>? = (memoryStore[key] as? Set<*>)?.mapNotNull { it as? String }?.toSet() ?: defValues
+        override fun getInt(key: String?, defValue: Int): Int = (memoryStore[key] as? Number)?.toInt() ?: defValue
+        override fun getLong(key: String?, defValue: Long): Long = (memoryStore[key] as? Number)?.toLong() ?: defValue
+        override fun getFloat(key: String?, defValue: Float): Float = (memoryStore[key] as? Number)?.toFloat() ?: defValue
+        override fun getBoolean(key: String?, defValue: Boolean): Boolean = (memoryStore[key] as? Boolean) ?: defValue
+        override fun contains(key: String?): Boolean = memoryStore.containsKey(key)
+        override fun edit(): SharedPreferences.Editor = EditorImpl()
+        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+
+        private inner class EditorImpl : SharedPreferences.Editor {
+            private val temp = mutableMapOf<String, Any?>()
+            private var clearFlag = false
+
+            override fun putString(key: String?, value: String?): SharedPreferences.Editor { if (key != null) temp[key] = value; return this }
+            override fun putStringSet(key: String?, values: Set<String>?): SharedPreferences.Editor { if (key != null) temp[key] = values; return this }
+            override fun putInt(key: String?, value: Int): SharedPreferences.Editor { if (key != null) temp[key] = value; return this }
+            override fun putLong(key: String?, value: Long): SharedPreferences.Editor { if (key != null) temp[key] = value; return this }
+            override fun putFloat(key: String?, value: Float): SharedPreferences.Editor { if (key != null) temp[key] = value; return this }
+            override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor { if (key != null) temp[key] = value; return this }
+            override fun remove(key: String?): SharedPreferences.Editor { if (key != null) temp[key] = this; return this }
+            override fun clear(): SharedPreferences.Editor { clearFlag = true; return this }
+            override fun commit(): Boolean { apply(); return true }
+            override fun apply() {
+                if (clearFlag) memoryStore.clear()
+                temp.forEach { (k, v) ->
+                    if (v === this) memoryStore.remove(k) else memoryStore[k] = v
+                }
             }
         }
     }

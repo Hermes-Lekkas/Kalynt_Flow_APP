@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -40,6 +42,25 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `ai_reports` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `title` TEXT NOT NULL,
+                        `summary` TEXT NOT NULL,
+                        `content` TEXT NOT NULL,
+                        `actionItems` TEXT NOT NULL,
+                        `workspaceId` TEXT NOT NULL,
+                        `memberEmails` TEXT NOT NULL,
+                        `timestamp` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -47,7 +68,9 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "kalyntflow_database"
                 )
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_9_10)
+                .fallbackToDestructiveMigration(dropAllTables = false)
+                .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = false)
                 .build()
                 INSTANCE = instance
                 instance

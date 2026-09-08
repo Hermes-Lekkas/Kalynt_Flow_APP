@@ -53,14 +53,20 @@ class GitHubViewModel(application: Application) : AndroidViewModel(application) 
     private val _isSyncingAll = MutableStateFlow(false)
     val isSyncingAll: StateFlow<Boolean> = _isSyncingAll.asStateFlow()
 
+    private var wasConnected = false
+    private var lastAutoSyncMs = 0L
+
     init {
-        // Automatically trigger sync for all linked repos on cold-start/screen initialization
+        // Trigger auto-sync ONLY on initial connection state transition with rate-limit cooldown
         viewModelScope.launch {
             try {
                 connectionState.collect { state ->
-                    if (state.isConnected) {
+                    val now = System.currentTimeMillis()
+                    if (state.isConnected && !wasConnected && (now - lastAutoSyncMs > 5 * 60 * 1000L)) {
+                        lastAutoSyncMs = now
                         syncAll()
                     }
+                    wasConnected = state.isConnected
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

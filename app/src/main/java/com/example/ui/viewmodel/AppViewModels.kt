@@ -6,6 +6,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.example.data.AppRepository
 import com.example.data.BillingManager
 import com.example.data.BillingResult2
@@ -1302,7 +1303,7 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun deleteAccountAndPersonalData(userEmail: String, onComplete: () -> Unit) {
+    fun deleteAccountAndPersonalData(userEmail: String, onResult: (success: Boolean, requiresReauth: Boolean, message: String?) -> Unit) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val auth = FirebaseAuth.getInstance()
             val user = auth.currentUser
@@ -1364,17 +1365,27 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
             }
 
             // 4. Delete Firebase Auth User account
-            try {
-                user?.delete()?.await()
-            } catch (e: Exception) {
-                android.util.Log.w("AppViewModels", "Firebase user delete requires re-auth, signing out: ${e.message}")
+            var authDeleteSuccess = false
+            var requiresReauth = false
+            var errorMessage: String? = null
+            if (user != null) {
                 try {
-                    auth.signOut()
-                } catch (e2: Exception) {}
+                    user.delete().await()
+                    authDeleteSuccess = true
+                } catch (e: FirebaseAuthRecentLoginRequiredException) {
+                    requiresReauth = true
+                    errorMessage = "Account data wiped. To permanently remove your sign-in credentials, please re-authenticate and confirm deletion."
+                    android.util.Log.w("AppViewModels", "Firebase user delete requires recent login", e)
+                } catch (e: Exception) {
+                    errorMessage = e.localizedMessage ?: "Failed to delete Firebase authentication record"
+                    android.util.Log.w("AppViewModels", "Firebase user delete error: ${e.message}")
+                }
+            } else {
+                authDeleteSuccess = true
             }
 
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                onComplete()
+                onResult(authDeleteSuccess, requiresReauth, errorMessage)
             }
         }
     }
