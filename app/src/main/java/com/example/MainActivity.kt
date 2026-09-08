@@ -1,14 +1,10 @@
 package com.example
 
-import android.annotation.SuppressLint
-import android.Manifest
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -18,27 +14,14 @@ import androidx.compose.ui.Modifier
 import com.example.auth.AuthState
 import com.example.auth.AuthViewModel
 import com.example.notifications.NotificationHelper
-import com.example.notifications.PermissionHelper
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.MainScreen
 import com.example.ui.theme.KalyntFlowTheme
-import com.google.firebase.FirebaseApp
-import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
   private lateinit var authViewModel: AuthViewModel
   private val currentIntentFlow = MutableStateFlow<Intent?>(null)
-
-  @SuppressLint("InvalidFragmentVersionForActivityResult")
-  private val notificationPermissionLauncher = registerForActivityResult(
-    ActivityResultContracts.RequestPermission()
-  ) { isGranted ->
-    if (isGranted) {
-      NotificationHelper.createNotificationChannels(this)
-    }
-  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)

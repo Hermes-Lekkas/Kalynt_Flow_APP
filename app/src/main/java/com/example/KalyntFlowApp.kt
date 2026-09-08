@@ -27,7 +27,7 @@ class KalyntFlowApp : Application() {
             )
         }
 
-        // Proactive Security & Cryptographic Integrity Verification & Policy Enforcement (Audit Finding 10)
+        // Proactive Security & Cryptographic Integrity Verification & Policy Enforcement
         com.example.security.SecurityHardening.checkSecurityStatus(this)
         com.example.security.SecurityHardening.enforceIntegrityPolicy(this)
 

@@ -147,7 +147,7 @@ fun AgentsScreen(
                 }
             }
 
-            // Real Live Agents Display (Finding 5: No hardcoded mock/fake agents)
+            // Live Desktop Agents Display
             if (activeAgents.isEmpty()) {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
@@ -206,7 +206,7 @@ fun AgentsScreen(
                 }
             }
 
-            // Real Quick Command Section (Finding 4: Functional send action)
+            // Quick Command Dispatch
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface,
@@ -273,7 +273,7 @@ fun AgentsScreen(
                             )
                         )
 
-                        // Functional Send Button (Finding 4)
+                        // Command Dispatch Button
                         val canSend = quickCommandText.isNotBlank() &&
                                 !isSending &&
                                 connectionState is DesktopConnectionState.Connected

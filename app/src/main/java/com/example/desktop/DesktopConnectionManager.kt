@@ -75,7 +75,7 @@ class DesktopConnectionManager private constructor(private val context: Context)
     }
 
     /**
-     * Connects to Kalynt Desktop Companion using WSS with certificate validation (Finding 2 & Finding 8).
+     * Connects to Kalynt Desktop Companion using WSS with TLS certificate validation.
      */
     fun connect() {
         val pairedInfo = pairingManager.getPairedDesktop()
@@ -175,8 +175,8 @@ class DesktopConnectionManager private constructor(private val context: Context)
     }
 
     /**
-     * Safely parses incoming JSON without logging sensitive payloads (Finding 7).
-     * Populates real agents and stream execution logs (Finding 5).
+     * Safely parses incoming JSON without logging sensitive payloads.
+     * Populates active desktop agents and stream execution logs.
      */
     private fun processIncomingMessage(rawJson: String) {
         try {
@@ -243,13 +243,13 @@ class DesktopConnectionManager private constructor(private val context: Context)
                 }
             }
         } catch (e: Exception) {
-            // Finding 7: Log sanitized parse error, never dump raw message text
+            // Log sanitized parse error, never dump raw message text
             SecurityHardening.safeLog(TAG, "Malformed message payload received: ${e.javaClass.simpleName}", isError = true)
         }
     }
 
     /**
-     * Sends a real command to an agent via the active WebSocket (Finding 4).
+     * Sends a command to an agent via the active WebSocket.
      */
     fun sendCommand(agentId: String, commandText: String): Result<Boolean> {
         val trimmed = commandText.trim()
@@ -292,7 +292,7 @@ class DesktopConnectionManager private constructor(private val context: Context)
     }
 
     /**
-     * Requests the live agents list from Kalynt Desktop (Finding 5).
+     * Requests the live active agents list from Kalynt Desktop.
      */
     fun requestAgentsList() {
         val ws = activeWebSocket ?: return

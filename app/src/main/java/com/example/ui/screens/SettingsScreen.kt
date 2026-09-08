@@ -52,14 +52,14 @@ fun SettingsScreen(
     val pairedDesktop = remember { pairingManager.getPairedDesktop() }
     var isUnpairing by remember { mutableStateOf(false) }
 
-    // Finding 10: Run security status evaluation
+    // Device and app integrity status
     val securityReport = remember { SecurityHardening.checkSecurityStatus(context) }
 
     var notificationsEnabled by remember {
         mutableStateOf(PermissionHelper.hasNotificationPermission(context))
     }
 
-    // Finding 6: Contextual permission launcher
+    // Contextual runtime notification permission launcher
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -95,7 +95,7 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // App Identity & Version (Finding 9: Programmatic version derived from BuildConfig)
+            // App Identity & Version Information
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface,
@@ -130,7 +130,7 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        // Finding 9: Single source of truth from BuildConfig.VERSION_NAME
+                        // Programmatic version display derived from BuildConfig
                         Text(
                             text = "Version ${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
                             style = MaterialTheme.typography.labelSmall,
@@ -141,7 +141,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Desktop Companion Connection Status (Finding 8)
+            // Desktop Companion Connection Status
             Text(
                 text = "Kalynt Desktop Companion",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -271,7 +271,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Security Hardening & Audit Verification (Finding 10)
+            // Device Security & Integrity Status
             Text(
                 text = "Device Security & Integrity Audit",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -323,7 +323,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Notifications Preference (Finding 6: Contextual toggle)
+            // Notification & System Preferences
             Text(
                 text = "Preferences",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
