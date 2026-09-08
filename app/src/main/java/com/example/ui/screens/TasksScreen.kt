@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,8 +55,11 @@ fun TasksScreen(viewModel: MainAppViewModel) {
     val widgetAddTaskTrigger by viewModel.widgetAddTaskTrigger.collectAsStateWithLifecycle()
     val widgetSelectedTaskId by viewModel.widgetSelectedTaskId.collectAsStateWithLifecycle()
 
-    var showAddTaskDialog by remember { mutableStateOf(false) }
-    var selectedTaskForDetails by remember { mutableStateOf<TaskEntity?>(null) }
+    var showAddTaskDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedTaskIdForDetails by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedTaskForDetails = remember(selectedTaskIdForDetails, tasks) {
+        selectedTaskIdForDetails?.let { id -> tasks.find { it.id == id } }
+    }
 
     LaunchedEffect(widgetAddTaskTrigger) {
         if (widgetAddTaskTrigger) {
@@ -68,17 +72,16 @@ fun TasksScreen(viewModel: MainAppViewModel) {
         if (!widgetSelectedTaskId.isNullOrBlank()) {
             val targetTask = tasks.find { it.id == widgetSelectedTaskId }
             if (targetTask != null) {
-                selectedTaskForDetails = targetTask
+                selectedTaskIdForDetails = targetTask.id
                 viewModel.consumeSelectTask()
             }
         }
     }
 
-    
     // Modern Collapsible Filter Dashboard State
-    var filtersExpanded by remember { mutableStateOf(false) }
-    var statusFilter by remember { mutableStateOf("All") }
-    var searchQuery by remember { mutableStateOf("") }
+    var filtersExpanded by rememberSaveable { mutableStateOf(false) }
+    var statusFilter by rememberSaveable { mutableStateOf("All") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val todayMs = remember {
         val calendar = Calendar.getInstance()
@@ -387,6 +390,7 @@ fun TasksScreen(viewModel: MainAppViewModel) {
                                         onClick = { statusFilter = state },
                                         label = { Text(state, style = MaterialTheme.typography.labelSmall) },
                                         shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                         colors = FilterChipDefaults.filterChipColors(
                                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                                             selectedLabelColor = MaterialTheme.colorScheme.onPrimary
@@ -465,13 +469,13 @@ fun TasksScreen(viewModel: MainAppViewModel) {
                                     onToggle = { viewModel.toggleTask(task) },
                                     onDelete = { 
                                         viewModel.deleteTask(task)
-                                        if (selectedTaskForDetails?.id == task.id) {
-                                            selectedTaskForDetails = null
+                                        if (selectedTaskIdForDetails == task.id) {
+                                            selectedTaskIdForDetails = null
                                         }
                                     },
-                                    onClickDetails = { selectedTaskForDetails = task },
+                                    onClickDetails = { selectedTaskIdForDetails = task.id },
                                     workspaces = workspaces,
-                                    isSelected = selectedTaskForDetails?.id == task.id
+                                    isSelected = selectedTaskIdForDetails == task.id
                                 )
                             }
                         }
@@ -512,7 +516,6 @@ fun TasksScreen(viewModel: MainAppViewModel) {
                                     comments = taskComments,
                                     onUpdateAssignee = { name, email ->
                                         viewModel.updateTaskAssignee(task, name, email)
-                                        selectedTaskForDetails = task.copy(assignedToName = name, assignedToEmail = email)
                                     },
                                     onAddComment = { author, email, text ->
                                         viewModel.addComment(task.id, "TASK", author, email, text, com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.photoUrl?.toString() ?: "")
@@ -798,6 +801,7 @@ fun TasksScreen(viewModel: MainAppViewModel) {
                                     onClick = { statusFilter = state },
                                     label = { Text(state, style = MaterialTheme.typography.labelSmall) },
                                     shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary
@@ -875,7 +879,7 @@ fun TasksScreen(viewModel: MainAppViewModel) {
                                 commentCount = taskComments.size,
                                 onToggle = { viewModel.toggleTask(task) },
                                 onDelete = { viewModel.deleteTask(task) },
-                                onClickDetails = { selectedTaskForDetails = task },
+                                onClickDetails = { selectedTaskIdForDetails = task.id },
                                 workspaces = workspaces,
                                 isSelected = false
                             )
@@ -914,10 +918,9 @@ fun TasksScreen(viewModel: MainAppViewModel) {
             task = task,
             workspaceMembers = wsMembers,
             comments = taskComments,
-            onDismiss = { selectedTaskForDetails = null },
+            onDismiss = { selectedTaskIdForDetails = null },
             onUpdateAssignee = { name, email ->
                 viewModel.updateTaskAssignee(task, name, email)
-                selectedTaskForDetails = task.copy(assignedToName = name, assignedToEmail = email)
             },
             onAddComment = { author, email, text ->
                 viewModel.addComment(task.id, "TASK", author, email, text, com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.photoUrl?.toString() ?: "")
@@ -1277,6 +1280,7 @@ fun TaskDetailContent(
                     selected = task.assignedToName.isEmpty(),
                     onClick = { onUpdateAssignee("", "") },
                     label = { Text("Unassigned", style = MaterialTheme.typography.labelSmall) },
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(8.dp)
                 )
             }
@@ -1286,6 +1290,7 @@ fun TaskDetailContent(
                     selected = isAssigned,
                     onClick = { onUpdateAssignee(member.name, member.email) },
                     label = { Text(member.name, style = MaterialTheme.typography.labelSmall) },
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                     leadingIcon = {
                         MemberAvatar(
                             name = member.name,
@@ -1488,13 +1493,16 @@ fun AddTaskDialog(
     onDismiss: () -> Unit,
     onConfirm: (title: String, desc: String, wsId: String, assigneeName: String, assigneeEmail: String, dueTimeMs: Long) -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selectedWsId by remember { mutableStateOf(initialWorkspaceId) }
-    var selectedAssignee by remember { mutableStateOf<WorkspaceMemberEntity?>(null) }
+    var title by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var selectedWsId by rememberSaveable { mutableStateOf(initialWorkspaceId) }
+    var selectedAssigneeEmail by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedAssignee = remember(selectedAssigneeEmail, workspaceMembers) {
+        workspaceMembers.find { it.email == selectedAssigneeEmail }
+    }
     
     val context = LocalContext.current
-    var selectedDateMs by remember { mutableStateOf(System.currentTimeMillis()) }
+    var selectedDateMs by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
     
     val formattedDate = remember(selectedDateMs) {
         SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(selectedDateMs))
@@ -1575,6 +1583,7 @@ fun AddTaskDialog(
                             selected = isSelected,
                             onClick = { selectedDateMs = ms },
                             label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                             shape = RoundedCornerShape(8.dp)
                         )
                     }
@@ -1600,7 +1609,7 @@ fun AddTaskDialog(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -1629,18 +1638,20 @@ fun AddTaskDialog(
                     ) {
                         item {
                             FilterChip(
-                                selected = selectedAssignee == null,
-                                onClick = { selectedAssignee = null },
+                                selected = selectedAssigneeEmail == null,
+                                onClick = { selectedAssigneeEmail = null },
                                 label = { Text("Unassigned", style = MaterialTheme.typography.labelSmall) },
+                                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                 shape = RoundedCornerShape(8.dp)
                             )
                         }
                         items(workspaceMembers, key = { it.id }) { member ->
-                            val isSelected = selectedAssignee?.id == member.id
+                            val isSelected = selectedAssigneeEmail == member.email
                             FilterChip(
                                 selected = isSelected,
-                                onClick = { selectedAssignee = member },
+                                onClick = { selectedAssigneeEmail = member.email },
                                 label = { Text(member.name, style = MaterialTheme.typography.labelSmall) },
+                                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                 leadingIcon = {
                                     MemberAvatar(
                                         name = member.name,
@@ -1676,6 +1687,7 @@ fun AddTaskDialog(
                                 selected = selectedWsId == ws.id,
                                 onClick = { selectedWsId = ws.id },
                                 label = { Text(ws.name, style = MaterialTheme.typography.labelSmall) },
+                                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                 leadingIcon = {
                                     Box(
                                         modifier = Modifier

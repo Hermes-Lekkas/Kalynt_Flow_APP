@@ -2,12 +2,15 @@ package com.example.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -23,7 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +51,7 @@ fun SettingsScreen(
     connectionManager: DesktopConnectionManager = DesktopConnectionManager.getInstance(LocalContext.current)
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -376,7 +382,133 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            // Legal, Privacy & Compliance (Google Play Policy Requirements)
+            Text(
+                text = "Legal & Privacy Compliance",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                tonalElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    LegalLinkItem(
+                        icon = Icons.Default.PrivacyTip,
+                        title = "Privacy Policy",
+                        description = "Review user data safety & privacy commitments",
+                        tag = "settings_privacy_policy_link",
+                        onClick = {
+                            openUrlSafely(context, uriHandler, "https://hermes-lekkas.github.io/Kalynt-Flow/")
+                        }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    LegalLinkItem(
+                        icon = Icons.Default.Description,
+                        title = "Terms of Service",
+                        description = "Service terms and zero-tolerance UGC policies",
+                        tag = "settings_terms_of_service_link",
+                        onClick = {
+                            openUrlSafely(context, uriHandler, "https://hermes-lekkas.github.io/Kalynt-Flow/")
+                        }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    LegalLinkItem(
+                        icon = Icons.Default.DeleteForever,
+                        title = "Account & Data Deletion Portal (Web)",
+                        description = "Web portal to request permanent account removal",
+                        tag = "settings_web_deletion_link",
+                        tint = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            openUrlSafely(context, uriHandler, "https://hermes-lekkas.github.io/Kalynt-Flow/delete-account")
+                        }
+                    )
+                }
+            }
         }
+    }
+}
+
+private fun openUrlSafely(context: Context, uriHandler: androidx.compose.ui.platform.UriHandler, url: String) {
+    try {
+        uriHandler.openUri(url)
+    } catch (e: Exception) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (ex: Exception) {
+            Toast.makeText(context, "Could not open browser for: $url", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+@Composable
+private fun LegalLinkItem(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    tag: String,
+    tint: Color = MaterialTheme.colorScheme.primary,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
+            .clickable(onClick = onClick)
+            .testTag(tag),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(tint.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.size(14.dp)
+        )
     }
 }
 

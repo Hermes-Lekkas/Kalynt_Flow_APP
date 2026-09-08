@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -148,10 +149,10 @@ fun MainScreen(
     }
 
     val activeTier by mainAppViewModel.activeSubscriptionTier.collectAsStateWithLifecycle()
-    var showProfileMenu by remember { mutableStateOf(false) }
-    var showPrivacySafetyDialog by remember { mutableStateOf(false) }
-    var showDeleteAccountConfirm by remember { mutableStateOf(false) }
-    var isDeletingAccount by remember { mutableStateOf(false) }
+    var showProfileMenu by rememberSaveable { mutableStateOf(false) }
+    var showPrivacySafetyDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteAccountConfirm by rememberSaveable { mutableStateOf(false) }
+    var isDeletingAccount by rememberSaveable { mutableStateOf(false) }
     val blockedUsers by mainAppViewModel.blockedUsers.collectAsStateWithLifecycle()
     val currentUser = remember { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser }
     val currentEmail = remember(currentUser) {

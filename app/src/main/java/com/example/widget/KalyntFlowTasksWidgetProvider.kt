@@ -91,6 +91,8 @@ class KalyntFlowTasksWidgetProvider : AppWidgetProvider() {
                     R.id.widget_task_count_badge,
                     if (totalCount == 1) "1 item" else "$totalCount items"
                 )
+                // Asynchronously refresh snapshot for widget list adapter
+                KalyntFlowWidgetDataHolder.refreshSnapshot(context)
             } catch (e: Exception) {
                 views.setTextViewText(R.id.widget_task_count_badge, "Items")
             }

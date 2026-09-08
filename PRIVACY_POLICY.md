@@ -99,8 +99,13 @@ You can permanently delete your entire account and all associated data directly 
 - Your Firebase Authentication credentials are deleted.
 - You are immediately signed out.
 
-### 2. Manual Deletion by Email
-You may also request complete data removal by emailing `KalyntFlow@protonmail.com` with the subject line *"Data Deletion Request"*. All server-side data associated with your email will be purged within 48 hours.
+### 2. External Web-Based Account & Data Deletion URL
+Pursuant to Google Play's User Data policy on Account Deletion, users who cannot access or have uninstalled the mobile application can request full account deletion via our dedicated web URL:
+- **Dedicated Web Deletion Portal**: [https://hermes-lekkas.github.io/Kalynt-Flow/delete-account](https://hermes-lekkas.github.io/Kalynt-Flow/delete-account)
+- **Direct Web Request**: Users can submit their registered account email address on this page to initiate automatic removal of all Firebase Authentication credentials, Firestore records, and associated workspace memberships.
+
+### 3. Manual Deletion by Email
+You may also request complete data removal by emailing `KalyntFlow@protonmail.com` or `hermeslekkasdev@gmail.com` with the subject line *"Data Deletion Request"*. All server-side data associated with your email will be purged within 48 hours.
 
 ---
 

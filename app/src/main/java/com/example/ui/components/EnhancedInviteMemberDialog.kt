@@ -94,6 +94,7 @@ fun EnhancedInviteMemberDialog(
                                 onClick = { role = r },
                                 label = { Text(r, style = MaterialTheme.typography.labelSmall) },
                                 shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary

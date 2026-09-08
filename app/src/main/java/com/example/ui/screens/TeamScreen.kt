@@ -306,6 +306,7 @@ fun TeamScreen(
                         FilterChip(
                             selected = isSelected,
                             onClick = { viewModel.selectWorkspace(ws.id) },
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                             label = { 
                                 Text(
                                     text = "${ws.name} ($memberCount)",

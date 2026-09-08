@@ -36,6 +36,7 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,9 +66,12 @@ fun NotesScreen(viewModel: MainAppViewModel) {
     val selectedWorkspaceId by viewModel.selectedWorkspaceId.collectAsStateWithLifecycle()
     val widgetAddNoteTrigger by viewModel.widgetAddNoteTrigger.collectAsStateWithLifecycle()
 
-    var showAddDialog by remember { mutableStateOf(false) }
-    var selectedNoteForEdit by remember { mutableStateOf<NoteEntity?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+    var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedNoteIdForEdit by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedNoteForEdit = remember(selectedNoteIdForEdit, notes) {
+        selectedNoteIdForEdit?.let { id -> notes.find { it.id == id } }
+    }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(widgetAddNoteTrigger) {
         if (widgetAddNoteTrigger) {
@@ -299,7 +303,7 @@ fun NotesScreen(viewModel: MainAppViewModel) {
                         NoteCard(
                             note = note,
                             workspaces = workspaces,
-                            onClick = { selectedNoteForEdit = note },
+                            onClick = { selectedNoteIdForEdit = note.id },
                             onDelete = { viewModel.deleteNote(note) }
                         )
                     }
@@ -326,10 +330,10 @@ fun NotesScreen(viewModel: MainAppViewModel) {
         EditNoteDialog(
             note = note,
             workspaces = workspaces,
-            onDismiss = { selectedNoteForEdit = null },
+            onDismiss = { selectedNoteIdForEdit = null },
             onSave = { updatedNote ->
                 viewModel.updateNote(updatedNote)
-                selectedNoteForEdit = null
+                selectedNoteIdForEdit = null
             }
         )
     }
@@ -679,12 +683,12 @@ fun AddNoteDialog(
     onConfirm: (String, String, String, Long) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    var title by remember { mutableStateOf("") }
-    var content by remember { mutableStateOf("") }
-    var selectedWsId by remember { mutableStateOf(initialWorkspaceId) }
+    var title by rememberSaveable { mutableStateOf("") }
+    var content by rememberSaveable { mutableStateOf("") }
+    var selectedWsId by rememberSaveable { mutableStateOf(initialWorkspaceId) }
     
-    var setDateEnabled by remember { mutableStateOf(false) }
-    var selectedDateMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var setDateEnabled by rememberSaveable { mutableStateOf(false) }
+    var selectedDateMs by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
     
     val formattedDate = remember(selectedDateMs) {
         SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(Date(selectedDateMs))
@@ -851,6 +855,7 @@ fun AddNoteDialog(
                                         )
                                     },
                                     shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary
@@ -890,12 +895,12 @@ fun EditNoteDialog(
     onSave: (NoteEntity) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    var title by remember { mutableStateOf(note.title) }
-    var content by remember { mutableStateOf(note.content) }
-    var selectedWsId by remember { mutableStateOf(note.workspaceId) }
+    var title by rememberSaveable { mutableStateOf(note.title) }
+    var content by rememberSaveable { mutableStateOf(note.content) }
+    var selectedWsId by rememberSaveable { mutableStateOf(note.workspaceId) }
     
-    var setDateEnabled by remember { mutableStateOf(note.dueDateMs > 0) }
-    var selectedDateMs by remember { mutableLongStateOf(if (note.dueDateMs > 0) note.dueDateMs else System.currentTimeMillis()) }
+    var setDateEnabled by rememberSaveable { mutableStateOf(note.dueDateMs > 0) }
+    var selectedDateMs by rememberSaveable { mutableLongStateOf(if (note.dueDateMs > 0) note.dueDateMs else System.currentTimeMillis()) }
     
     val formattedDate = remember(selectedDateMs) {
         SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(Date(selectedDateMs))
@@ -1060,6 +1065,7 @@ fun EditNoteDialog(
                                         )
                                     },
                                     shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary

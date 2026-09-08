@@ -700,6 +700,7 @@ fun ChatScreen(
                                 FilterChip(
                                     selected = selectedWsId == ws.id,
                                     onClick = { selectedWsId = ws.id },
+                                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                     label = { Text(ws.name) }
                                 )
                             }
@@ -754,6 +755,7 @@ fun ChatScreen(
                                 FilterChip(
                                     selected = selectedWsId == ws.id,
                                     onClick = { selectedWsId = ws.id },
+                                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                     label = { Text(ws.name) }
                                 )
                             }

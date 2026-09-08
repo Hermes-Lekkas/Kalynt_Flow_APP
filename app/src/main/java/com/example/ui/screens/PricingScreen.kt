@@ -258,9 +258,21 @@ fun PricingScreen(navController: NavController, viewModel: MainAppViewModel) {
                     onClick = {
                         if (activeTier != "FREE") {
                             // Open Play Store subscription management for cancellation
-                            val intent = Intent(Intent.ACTION_VIEW,
-                                Uri.parse("https://play.google.com/store/account/subscriptions"))
-                            context.startActivity(intent)
+                            try {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://play.google.com/store/account/subscriptions")
+                                ).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(
+                                    context,
+                                    "Unable to open subscription management. Please check your browser or Play Store app.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
                     }
                 )

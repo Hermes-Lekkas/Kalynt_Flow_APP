@@ -874,6 +874,7 @@ fun OrganizeEventDialog(
                                     selected = isSelected,
                                     onClick = { selectedWsId = ws.id },
                                     label = { Text(ws.name, style = MaterialTheme.typography.labelSmall) },
+                                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                             }

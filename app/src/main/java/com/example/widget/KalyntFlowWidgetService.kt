@@ -33,74 +33,74 @@ data class WidgetItem(
     val isTask: Boolean
 )
 
-class KalyntFlowWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
-
-    private val items = mutableListOf<WidgetItem>()
+object KalyntFlowWidgetDataHolder {
+    private val cachedItems = mutableListOf<WidgetItem>()
     private val dateFormat = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
 
-    override fun onCreate() {
-        loadData()
+    fun getItems(context: Context): List<WidgetItem> {
+        val currentSnapshot = synchronized(cachedItems) { cachedItems.toList() }
+        if (currentSnapshot.isNotEmpty()) {
+            return currentSnapshot
+        }
+        // If empty, trigger async refresh in background
+        KalyntFlowTasksWidgetProvider.updateAllWidgets(context)
+        return synchronized(cachedItems) { cachedItems.toList() }
     }
 
-    override fun onDataSetChanged() {
-        loadData()
-    }
-
-    private fun loadData() {
+    suspend fun refreshSnapshot(context: Context) {
+        val newItems = mutableListOf<WidgetItem>()
         try {
             val db = AppDatabase.getDatabase(context)
-            val newItems = mutableListOf<WidgetItem>()
-            runBlocking(Dispatchers.IO) {
-                val workspaces = try { db.workspaceDao().getAllWorkspacesSync() } catch (e: Exception) { emptyList() }
-                val activeTasks = try { db.taskDao().getAllActiveTasksSync() } catch (e: Exception) { emptyList() }
-                val notes = try { db.noteDao().getAllNotesSync() } catch (e: Exception) { emptyList() }
-                val workspaceMap = workspaces.associateBy { it.id }
+            val workspaces = try { db.workspaceDao().getAllWorkspacesSync() } catch (e: Exception) { emptyList() }
+            val activeTasks = try { db.taskDao().getAllActiveTasksSync() } catch (e: Exception) { emptyList() }
+            val notes = try { db.noteDao().getAllNotesSync() } catch (e: Exception) { emptyList() }
+            val workspaceMap = workspaces.associateBy { it.id }
 
-                // 1. Add all active tasks
-                for (task in activeTasks) {
-                    val wsName = workspaceMap[task.workspaceId]?.name ?: "General"
-                    val (badgeText, badgeColor) = getTaskBadge(task)
-                    val subtitle = if (task.dueDateMs > 0) {
-                        "Due ${dateFormat.format(Date(task.dueDateMs))} • $wsName"
-                    } else {
-                        "Task • $wsName"
-                    }
-                    newItems.add(
-                        WidgetItem(
-                            id = task.id,
-                            title = task.title.ifBlank { "Untitled Task" },
-                            subtitle = subtitle,
-                            badgeText = badgeText,
-                            badgeColor = badgeColor,
-                            iconRes = R.drawable.ic_widget_check_empty,
-                            isTask = true
-                        )
-                    )
+            // 1. Add all active tasks
+            for (task in activeTasks) {
+                val wsName = workspaceMap[task.workspaceId]?.name ?: "General"
+                val (badgeText, badgeColor) = getTaskBadge(task)
+                val subtitle = if (task.dueDateMs > 0) {
+                    "Due ${dateFormat.format(Date(task.dueDateMs))} • $wsName"
+                } else {
+                    "Task • $wsName"
                 }
-
-                // 2. Add recent notes
-                for (note in notes.take(15)) {
-                    val wsName = workspaceMap[note.workspaceId]?.name ?: "General"
-                    val preview = note.content.trim().lines().firstOrNull()?.take(40) ?: "Note"
-                    newItems.add(
-                        WidgetItem(
-                            id = note.id,
-                            title = note.title.ifBlank { "Untitled Note" },
-                            subtitle = "$preview • $wsName",
-                            badgeText = "NOTE",
-                            badgeColor = Color.parseColor("#818CF8"),
-                            iconRes = R.drawable.ic_widget_note,
-                            isTask = false
-                        )
+                newItems.add(
+                    WidgetItem(
+                        id = task.id,
+                        title = task.title.ifBlank { "Untitled Task" },
+                        subtitle = subtitle,
+                        badgeText = badgeText,
+                        badgeColor = badgeColor,
+                        iconRes = R.drawable.ic_widget_check_empty,
+                        isTask = true
                     )
-                }
+                )
             }
-            synchronized(items) {
-                items.clear()
-                items.addAll(newItems)
+
+            // 2. Add recent notes
+            for (note in notes.take(15)) {
+                val wsName = workspaceMap[note.workspaceId]?.name ?: "General"
+                val preview = note.content.trim().lines().firstOrNull()?.take(40) ?: "Note"
+                newItems.add(
+                    WidgetItem(
+                        id = note.id,
+                        title = note.title.ifBlank { "Untitled Note" },
+                        subtitle = "$preview • $wsName",
+                        badgeText = "NOTE",
+                        badgeColor = Color.parseColor("#818CF8"),
+                        iconRes = R.drawable.ic_widget_note,
+                        isTask = false
+                    )
+                )
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+
+        synchronized(cachedItems) {
+            cachedItems.clear()
+            cachedItems.addAll(newItems)
         }
     }
 
@@ -115,6 +115,27 @@ class KalyntFlowWidgetFactory(private val context: Context) : RemoteViewsService
                 "MED" to Color.parseColor("#F59E0B")
             else ->
                 "LOW" to Color.parseColor("#10B981")
+        }
+    }
+}
+
+class KalyntFlowWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
+
+    private val items = mutableListOf<WidgetItem>()
+
+    override fun onCreate() {
+        loadData()
+    }
+
+    override fun onDataSetChanged() {
+        loadData()
+    }
+
+    private fun loadData() {
+        val snapshot = KalyntFlowWidgetDataHolder.getItems(context)
+        synchronized(items) {
+            items.clear()
+            items.addAll(snapshot)
         }
     }
 

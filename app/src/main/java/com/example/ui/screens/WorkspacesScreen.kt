@@ -470,6 +470,7 @@ fun AddWorkspaceDialog(
 
                         FilterChip(
                             selected = isSelected,
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                             onClick = {
                                 if (isLocked) {
                                     onUpgradeClick()

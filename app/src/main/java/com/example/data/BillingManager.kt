@@ -273,10 +273,9 @@ class BillingManager(
 
     private suspend fun handlePurchaseList(purchases: List<Purchase>) {
         if (purchases.isEmpty()) {
-            val cached = prefs.getString("active_tier", "FREE") ?: "FREE"
-            if (_activeTier.value == "FREE" && cached != "FREE") {
-                _activeTier.value = cached
-            }
+            _activeTier.value = "FREE"
+            prefs.edit().putString("active_tier", "FREE").apply()
+            Log.d(TAG, "No active subscriptions found. Reverted active tier to: FREE")
             return
         }
 
