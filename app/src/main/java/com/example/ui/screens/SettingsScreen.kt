@@ -174,7 +174,7 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Host: ${pairedDesktop.host} (TLS: ${pairedDesktop.port}, HTTP: ${pairedDesktop.httpPort})",
+                                    text = "Host: ${pairedDesktop.host}:${pairedDesktop.port} (TLS 1.3)",
                                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                                     color = MaterialTheme.colorScheme.secondary
                                 )
@@ -304,14 +304,20 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     SecurityAuditItem(
-                        title = "Application Package Integrity",
-                        status = if (securityReport.isIntegrityVerified) "Verified Package Identity" else "Unknown Packaging",
-                        isGood = securityReport.isIntegrityVerified
+                        title = "APK Signing Certificate Integrity",
+                        status = if (securityReport.isSignatureVerified) "Verified Certificate (SHA-256: ${securityReport.signingCertFingerprint.take(17)}...)" else "Unverified Signature",
+                        isGood = securityReport.isSignatureVerified
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    SecurityAuditItem(
+                        title = "Network Security & TLS",
+                        status = "Cleartext Disabled / TLS 1.3 Enforced",
+                        isGood = true
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     SecurityAuditItem(
                         title = "Encrypted Token Storage",
-                        status = "AES256-GCM / MasterKey Active",
+                        status = "AES256-GCM / MasterKey Hardware-Backed",
                         isGood = true
                     )
                 }

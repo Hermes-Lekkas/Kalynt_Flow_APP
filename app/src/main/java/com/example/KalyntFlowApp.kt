@@ -27,8 +27,9 @@ class KalyntFlowApp : Application() {
             )
         }
 
-        // Proactive Security & Integrity Verification (Audit Finding 10)
+        // Proactive Security & Cryptographic Integrity Verification & Policy Enforcement (Audit Finding 10)
         com.example.security.SecurityHardening.checkSecurityStatus(this)
+        com.example.security.SecurityHardening.enforceIntegrityPolicy(this)
 
         // Initialize Notification Channels, Daily Priority Briefing, and Background Sync
         NotificationHelper.createNotificationChannels(this)

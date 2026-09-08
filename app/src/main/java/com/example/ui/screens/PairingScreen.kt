@@ -73,13 +73,12 @@ fun PairingScreen(
 
     var manualHost by remember { mutableStateOf("") }
     var manualPort by remember { mutableStateOf("8443") }
-    var manualHttpPort by remember { mutableStateOf("8444") }
     var manualCode by remember { mutableStateOf("") }
     var manualFingerprint by remember { mutableStateOf("") }
     var isPairing by remember { mutableStateOf(false) }
     var pairingErrorMessage by remember { mutableStateOf<String?>(null) }
 
-    fun executePairing(host: String, port: Int, httpPort: Int, code: String, fingerprint: String?) {
+    fun executePairing(host: String, port: Int, code: String, fingerprint: String?) {
         if (host.isBlank() || code.isBlank()) {
             pairingErrorMessage = "Please provide valid host and pairing code."
             return
@@ -92,7 +91,6 @@ fun PairingScreen(
             val result = pairingManager.pair(
                 host = host.trim(),
                 port = port,
-                httpPort = httpPort,
                 pairingCode = code.trim(),
                 expectedFingerprint = fingerprint?.trim()?.takeIf { it.isNotBlank() }
             )
@@ -100,11 +98,11 @@ fun PairingScreen(
             isPairing = false
             if (result.success) {
                 Toast.makeText(context, "Successfully paired with ${result.desktopInfo?.desktopName ?: "Desktop"}!", Toast.LENGTH_SHORT).show()
-                // Connect WebSocket immediately
+                // Connect WebSocket securely over TLS immediately
                 connectionManager.connect()
                 navController.popBackStack()
             } else {
-                pairingErrorMessage = result.errorMessage ?: "Pairing failed. Check IP, port, and Wi-Fi connection."
+                pairingErrorMessage = result.errorMessage ?: "Pairing failed. Ensure desktop is reachable over TLS."
             }
         }
     }
@@ -117,10 +115,9 @@ fun PairingScreen(
                 val json = JSONObject(content)
                 val host = json.optString("host", "")
                 val port = json.optInt("port", 8443)
-                val httpPort = json.optInt("httpPort", 8444)
                 val code = json.optString("code", "")
                 val fingerprint = json.optString("fingerprint", "")
-                executePairing(host, port, httpPort, code, fingerprint)
+                executePairing(host, port, code, fingerprint)
                 return
             }
 
@@ -128,12 +125,11 @@ fun PairingScreen(
             val uri = Uri.parse(content)
             val host = uri.getQueryParameter("host") ?: ""
             val port = uri.getQueryParameter("port")?.toIntOrNull() ?: 8443
-            val httpPort = uri.getQueryParameter("httpPort")?.toIntOrNull() ?: 8444
             val code = uri.getQueryParameter("code") ?: uri.getQueryParameter("pin") ?: ""
             val fingerprint = uri.getQueryParameter("fingerprint")
 
             if (host.isNotBlank() && code.isNotBlank()) {
-                executePairing(host, port, httpPort, code, fingerprint)
+                executePairing(host, port, code, fingerprint)
             } else {
                 pairingErrorMessage = "QR code does not contain valid Kalynt pairing parameters."
             }
@@ -343,25 +339,13 @@ fun PairingScreen(
                         singleLine = true
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = manualPort,
-                            onValueChange = { manualPort = it },
-                            label = { Text("TLS Port (8443)") },
-                            modifier = Modifier.weight(1f).testTag("input_desktop_port"),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = manualHttpPort,
-                            onValueChange = { manualHttpPort = it },
-                            label = { Text("HTTP Port (8444)") },
-                            modifier = Modifier.weight(1f).testTag("input_desktop_http_port"),
-                            singleLine = true
-                        )
-                    }
+                    OutlinedTextField(
+                        value = manualPort,
+                        onValueChange = { manualPort = it },
+                        label = { Text("TLS / HTTPS Port (default: 8443)") },
+                        modifier = Modifier.fillMaxWidth().testTag("input_desktop_port"),
+                        singleLine = true
+                    )
 
                     OutlinedTextField(
                         value = manualCode,
@@ -374,9 +358,15 @@ fun PairingScreen(
                     OutlinedTextField(
                         value = manualFingerprint,
                         onValueChange = { manualFingerprint = it },
-                        label = { Text("TLS Cert SHA-256 Fingerprint (Optional)") },
+                        label = { Text("TLS Cert SHA-256 Fingerprint (Required for self-signed)") },
                         modifier = Modifier.fillMaxWidth().testTag("input_cert_fingerprint"),
                         singleLine = true
+                    )
+
+                    Text(
+                        "Strict TLS 1.3 encryption is enforced. Self-signed companion certificates require the SHA-256 fingerprint displayed on your desktop.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -384,8 +374,7 @@ fun PairingScreen(
                     Button(
                         onClick = {
                             val port = manualPort.toIntOrNull() ?: 8443
-                            val httpPort = manualHttpPort.toIntOrNull() ?: 8444
-                            executePairing(manualHost, port, httpPort, manualCode, manualFingerprint)
+                            executePairing(manualHost, port, manualCode, manualFingerprint)
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp).testTag("submit_manual_pair_button"),
                         shape = RoundedCornerShape(12.dp)

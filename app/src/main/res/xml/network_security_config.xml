@@ -1,18 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- By default, allow cleartext traffic for local development and companion desktop pairing on LAN -->
-    <base-config cleartextTrafficPermitted="true">
+    <!-- Strict TLS enforcement: cleartext traffic is completely disallowed across the application -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
-
-    <!-- Specific domain rules for companion endpoints and local loopbacks -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">local</domain>
-    </domain-config>
 </network-security-config>

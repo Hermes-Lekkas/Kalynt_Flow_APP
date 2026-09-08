@@ -29,8 +29,11 @@ cameraCamera2 = "1.5.0"
 cameraLifecycle = "1.5.0"
 cameraView = "1.5.0"
 cameraCore = "1.5.0"
-loggingInterceptor = "4.10.0"
-okhttp = "4.10.0"
+loggingInterceptor = "4.12.0"
+okhttp = "4.12.0"
+securityCrypto = "1.1.0"
+javaWebSocket = "1.6.0"
+zxingCore = "3.5.3"
 moshiKotlin = "1.15.2"
 moshiKotlinCodegen = "1.15.2"
 datastorePreferences = "1.1.7"
@@ -101,6 +104,9 @@ androidx-credentials = { group = "androidx.credentials", name = "credentials", v
 androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 billing = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
+java-websocket = { group = "org.java-websocket", name = "Java-WebSocket", version.ref = "javaWebSocket" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxingCore" }
 
 
 [plugins]

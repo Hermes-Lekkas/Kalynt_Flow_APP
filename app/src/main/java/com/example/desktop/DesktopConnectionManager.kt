@@ -89,11 +89,10 @@ class DesktopConnectionManager private constructor(private val context: Context)
 
         val okHttpClient = buildWebSocketClient(pairedInfo.certFingerprint)
 
-        // Try WSS on secure port 8443, fallback to WS on httpPort 8444 if local cleartext is used (Finding 1 & 2)
-        val wssUrl = "wss://${pairedInfo.host}:${pairedInfo.port}/ws?token=${pairedInfo.accessToken}"
-        val wsUrl = "ws://${pairedInfo.host}:${pairedInfo.httpPort}/ws?token=${pairedInfo.accessToken}"
+        // Strict TLS: only connect via WSS. Access token is transmitted securely via HTTP Authorization header, NOT in URL query string.
+        val wssUrl = "wss://${pairedInfo.host}:${pairedInfo.port}/ws"
 
-        initiateWebSocket(okHttpClient, wssUrl, fallbackUrl = wsUrl, pairedInfo = pairedInfo)
+        initiateWebSocket(okHttpClient, wssUrl, pairedInfo = pairedInfo)
     }
 
     private fun buildWebSocketClient(certFingerprint: String?): OkHttpClient {
@@ -106,7 +105,8 @@ class DesktopConnectionManager private constructor(private val context: Context)
             val trustManager = SecurityHardening.createDesktopTrustManager(certFingerprint)
             val sslSocketFactory = SecurityHardening.createDesktopSslSocketFactory(trustManager)
             builder.sslSocketFactory(sslSocketFactory, trustManager)
-            builder.hostnameVerifier { _, _ -> true } // Pinned via custom TrustManager
+            // Strict HostnameVerifier: verifies pinned certificate fingerprint or delegates to default system CA verifier
+            builder.hostnameVerifier(SecurityHardening.createDesktopHostnameVerifier(certFingerprint))
         } catch (e: Exception) {
             SecurityHardening.safeLog(TAG, "Custom TLS socket initialization warning: ${e.javaClass.simpleName}", isError = false)
         }
@@ -117,7 +117,6 @@ class DesktopConnectionManager private constructor(private val context: Context)
     private fun initiateWebSocket(
         client: OkHttpClient,
         targetUrl: String,
-        fallbackUrl: String?,
         pairedInfo: PairedDesktopInfo
     ) {
         val request = Request.Builder()
@@ -125,11 +124,11 @@ class DesktopConnectionManager private constructor(private val context: Context)
             .header("Authorization", "Bearer ${pairedInfo.accessToken}")
             .build()
 
-        SecurityHardening.safeLog(TAG, "Opening WebSocket connection to companion desktop...")
+        SecurityHardening.safeLog(TAG, "Opening secure WSS connection to companion desktop...")
 
         activeWebSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                SecurityHardening.safeLog(TAG, "WebSocket connected successfully.")
+                SecurityHardening.safeLog(TAG, "WebSocket connected successfully over TLS.")
                 reconnectAttempts = 0
                 _connectionState.value = DesktopConnectionState.Connected(
                     desktopName = pairedInfo.desktopName,
@@ -137,18 +136,17 @@ class DesktopConnectionManager private constructor(private val context: Context)
                     port = pairedInfo.port
                 )
 
-                // Request initial active agents from desktop (Finding 5: Live data synchronization)
+                // Request initial active agents from desktop (Live data synchronization)
                 requestAgentsList()
 
                 appendLog(
                     agentId = "system",
                     agentName = "Kalynt Companion",
-                    message = "Connected to ${pairedInfo.desktopName} (${pairedInfo.host}:${pairedInfo.port})"
+                    message = "Connected securely to ${pairedInfo.desktopName} (${pairedInfo.host}:${pairedInfo.port}) via TLS"
                 )
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                // Finding 7: Process JSON safely without leaking raw message payloads into logcat
                 processIncomingMessage(text)
             }
 
@@ -166,17 +164,9 @@ class DesktopConnectionManager private constructor(private val context: Context)
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                // Finding 7: Safe error logging without sensitive exposure
-                SecurityHardening.safeLog(TAG, "WebSocket connection failure: ${t.javaClass.simpleName}", isError = true)
+                SecurityHardening.safeLog(TAG, "WebSocket secure connection failure: ${t.javaClass.simpleName}", isError = true)
 
-                // If WSS failed and we have an HTTP fallback on local LAN, attempt fallback once
-                if (fallbackUrl != null && targetUrl.startsWith("wss://")) {
-                    SecurityHardening.safeLog(TAG, "Retrying via local LAN fallback WebSocket...")
-                    initiateWebSocket(client, fallbackUrl, null, pairedInfo)
-                    return
-                }
-
-                _connectionState.value = DesktopConnectionState.Error("Connection failed: ${t.localizedMessage ?: "Network unreachable"}")
+                _connectionState.value = DesktopConnectionState.Error("Secure connection failed: ${t.localizedMessage ?: "TLS/Network error"}")
                 if (!isManualDisconnect) {
                     scheduleReconnect()
                 }
