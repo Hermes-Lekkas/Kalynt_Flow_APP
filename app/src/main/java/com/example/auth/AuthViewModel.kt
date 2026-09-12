@@ -28,7 +28,12 @@ import java.util.UUID
 sealed class AuthState {
     object Loading : AuthState()
     object Unauthenticated : AuthState()
-    data class Authenticated(val uid: String, val email: String?, val displayName: String?) : AuthState()
+    data class Authenticated(
+        val uid: String,
+        val email: String?,
+        val displayName: String?,
+        val isEmailVerified: Boolean = true
+    ) : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
@@ -43,7 +48,12 @@ class AuthViewModel(context: Context? = null) : ViewModel() {
             auth = FirebaseAuth.getInstance()
             val user = auth?.currentUser
             if (user != null) {
-                _authState.value = AuthState.Authenticated(user.uid, user.email, user.displayName)
+                _authState.value = AuthState.Authenticated(
+                    uid = user.uid,
+                    email = user.email,
+                    displayName = user.displayName,
+                    isEmailVerified = user.isEmailVerified || user.isAnonymous
+                )
             } else {
                 _authState.value = AuthState.Unauthenticated
             }
@@ -168,7 +178,12 @@ class AuthViewModel(context: Context? = null) : ViewModel() {
                 val authResult = firebaseAuth.signInWithCredential(firebaseCredential).await()
                 val user = authResult.user
                 if (user != null) {
-                    _authState.value = AuthState.Authenticated(user.uid, user.email, user.displayName)
+                    _authState.value = AuthState.Authenticated(
+                        uid = user.uid,
+                        email = user.email,
+                        displayName = user.displayName,
+                        isEmailVerified = user.isEmailVerified || user.isAnonymous
+                    )
                 } else {
                     _authState.value = AuthState.Unauthenticated
                 }
@@ -178,6 +193,51 @@ class AuthViewModel(context: Context? = null) : ViewModel() {
             }
         } else {
             _authState.value = AuthState.Error("Unexpected credential type: ${credential.type}")
+        }
+    }
+
+    fun sendEmailVerification(onResult: (Boolean, String?) -> Unit) {
+        val user = auth?.currentUser
+        if (user == null) {
+            onResult(false, "No authenticated user found.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                user.sendEmailVerification().await()
+                onResult(true, null)
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Failed to send verification email", e)
+                onResult(false, e.localizedMessage ?: "Failed to send verification email.")
+            }
+        }
+    }
+
+    fun reloadUser(onComplete: (Boolean) -> Unit) {
+        val user = auth?.currentUser
+        if (user == null) {
+            onComplete(false)
+            return
+        }
+        viewModelScope.launch {
+            try {
+                user.reload().await()
+                val reloadedUser = auth?.currentUser
+                if (reloadedUser != null) {
+                    _authState.value = AuthState.Authenticated(
+                        uid = reloadedUser.uid,
+                        email = reloadedUser.email,
+                        displayName = reloadedUser.displayName,
+                        isEmailVerified = reloadedUser.isEmailVerified || reloadedUser.isAnonymous
+                    )
+                    onComplete(reloadedUser.isEmailVerified)
+                } else {
+                    onComplete(false)
+                }
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Failed to reload user", e)
+                onComplete(false)
+            }
         }
     }
 

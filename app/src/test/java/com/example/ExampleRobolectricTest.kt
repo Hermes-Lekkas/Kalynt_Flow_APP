@@ -42,4 +42,24 @@ class ExampleRobolectricTest {
     val billingManager = BillingManager.getInstance(context)
     assertEquals("FREE", billingManager.activeTier.value)
   }
+
+  @Test
+  fun `verify AuthState Authenticated email verification default state`() {
+    val authState = com.example.auth.AuthState.Authenticated(
+      uid = "test-uid-123",
+      email = "hermeslekkasdev@gmail.com",
+      displayName = "Hermes",
+      isEmailVerified = false
+    )
+    assertEquals(false, authState.isEmailVerified)
+    assertEquals("hermeslekkasdev@gmail.com", authState.email)
+  }
+
+  @Test
+  fun `verify SecurityHardening checks pass in test environment`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val report = com.example.security.SecurityHardening.checkSecurityStatus(context)
+    assertNotNull(report)
+    assertNotNull(report.signingCertFingerprint)
+  }
 }

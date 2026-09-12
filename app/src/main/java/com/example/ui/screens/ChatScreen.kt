@@ -83,7 +83,7 @@ fun ChatScreen(
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     val selectedWorkspaceId by viewModel.selectedWorkspaceId.collectAsStateWithLifecycle()
 
-    val geminiRepo = remember { GeminiRepository() }
+    val geminiRepo = remember { GeminiRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 

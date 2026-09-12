@@ -56,6 +56,7 @@ fun MainScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
     val userProfileState by mainAppViewModel.userProfileState.collectAsStateWithLifecycle()
+    val authState by authViewModel.authState.collectAsStateWithLifecycle()
 
     var hasNotificationPermission by remember {
         mutableStateOf(PermissionHelper.hasNotificationPermission(context))
@@ -956,25 +957,93 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = remember { initialRoute?.takeIf { it.isNotBlank() } ?: "workspaces" },
-            enterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) },
-
-            exitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200)) },
-            popEnterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) },
-            popExitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200)) },
-            modifier = Modifier.padding(innerPadding).fillMaxSize().background(MaterialTheme.colorScheme.background)
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            composable("workspaces") { WorkspacesScreen(navController, mainAppViewModel) }
-            composable("tasks") { TasksScreen(mainAppViewModel) }
-            composable("team") { TeamScreen(navController, mainAppViewModel, onSignInClick = { authViewModel.signOut() }) }
-            composable("notes") { NotesScreen(mainAppViewModel) }
-            composable("calendar") { CalendarScreen(mainAppViewModel) }
-            composable("chat") { ChatScreen(navController, mainAppViewModel, onSignInClick = { authViewModel.signOut() }) }
-            composable("github") { GitHubScreen() }
-            composable("pricing") { PricingScreen(navController, mainAppViewModel) }
-            composable("settings") { SettingsScreen(navController) }
+            val authUser = authState as? com.example.auth.AuthState.Authenticated
+            if (authUser != null && !authUser.isEmailVerified) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.95f),
+                    tonalElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Email verification needed",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Email Verification Required",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                "Verify your email to enable real-time cloud sync with Firebase.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(
+                                    onClick = {
+                                        authViewModel.sendEmailVerification { success, err ->
+                                            val msg = if (success) "Verification email sent! Check your inbox." else (err ?: "Failed to send.")
+                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Resend Email", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+                                TextButton(
+                                    onClick = {
+                                        authViewModel.reloadUser { verified ->
+                                            val msg = if (verified) "Email verified! Cloud sync active." else "Not verified yet. Check your inbox."
+                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Check Status", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            NavHost(
+                navController = navController,
+                startDestination = remember { initialRoute?.takeIf { it.isNotBlank() } ?: "workspaces" },
+                enterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) },
+                exitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200)) },
+                popEnterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) },
+                popExitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200)) },
+                modifier = Modifier.weight(1f).fillMaxWidth()
+            ) {
+                composable("workspaces") { WorkspacesScreen(navController, mainAppViewModel) }
+                composable("tasks") { TasksScreen(mainAppViewModel) }
+                composable("team") { TeamScreen(navController, mainAppViewModel, onSignInClick = { authViewModel.signOut() }) }
+                composable("notes") { NotesScreen(mainAppViewModel) }
+                composable("calendar") { CalendarScreen(mainAppViewModel) }
+                composable("chat") { ChatScreen(navController, mainAppViewModel, onSignInClick = { authViewModel.signOut() }) }
+                composable("github") { GitHubScreen() }
+                composable("pricing") { PricingScreen(navController, mainAppViewModel) }
+                composable("settings") { SettingsScreen(navController) }
+            }
         }
     }
 

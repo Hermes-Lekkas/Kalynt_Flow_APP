@@ -42,11 +42,26 @@ android {
         keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
         keyPassword = keyPasswordEnv
       } else {
-        // Explicit fallback to debug signing when release keystore or credentials are not supplied
-        storeFile = file("${rootDir}/debug.keystore")
-        storePassword = "android"
-        keyAlias = "androiddebugkey"
-        keyPassword = "android"
+        val isReleaseBuild = gradle.startParameter.taskNames.any {
+          it.contains("Release", ignoreCase = true) || it.contains("bundle", ignoreCase = true)
+        }
+        if (isReleaseBuild) {
+          val missing = mutableListOf<String>()
+          if (!releaseKeystoreFile.exists()) missing.add("Keystore file not found at ${releaseKeystoreFile.absolutePath} (set KEYSTORE_PATH or place my-upload-key.jks in root)")
+          if (storePasswordEnv.isNullOrBlank()) missing.add("STORE_PASSWORD environment variable is missing")
+          if (keyPasswordEnv.isNullOrBlank()) missing.add("KEY_PASSWORD environment variable is missing")
+          throw GradleException(
+            "Release signing configuration failed! Release builds (APK/AAB) MUST be signed with an authentic production upload keystore for Google Play Store upload.\n" +
+            "Missing release credentials:\n - " + missing.joinToString("\n - ") + "\n" +
+            "Please configure KEYSTORE_PATH, STORE_PASSWORD, and KEY_PASSWORD before building release artifacts."
+          )
+        } else {
+          // Fallback for non-release evaluations (debug, test, compile)
+          storeFile = file("${rootDir}/debug.keystore")
+          storePassword = "android"
+          keyAlias = "androiddebugkey"
+          keyPassword = "android"
+        }
       }
     }
   }
@@ -78,7 +93,7 @@ secrets {
   defaultPropertiesFileName = ".env.example"
 }
 
-googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
+googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.ERROR }
 
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.

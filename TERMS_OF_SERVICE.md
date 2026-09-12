@@ -62,7 +62,7 @@ Kalynt Flow integrates Generative AI features:
 ---
 
 ## 8. In-App Subscriptions & Billing
-- Subscriptions (Pro Monthly, Pro Annual, Lifetime) are billed through your **Google Play Account**.
+- Subscriptions (Pro Monthly, Pro Annual) are billed through your **Google Play Account**.
 - Auto-renewing subscriptions must be managed or cancelled in Google Play Store Account Settings at least 24 hours prior to the renewal date.
 - Refunds are subject to Google Play standard refund terms.
 

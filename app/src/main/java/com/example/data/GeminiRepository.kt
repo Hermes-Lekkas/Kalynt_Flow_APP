@@ -1,5 +1,6 @@
 package com.example.data
 
+import android.content.Context
 import android.util.Log
 import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +31,7 @@ data class ChatMessage(
     val actionsPerformed: List<AiAction> = emptyList()
 )
 
-class GeminiRepository {
+class GeminiRepository(private val context: Context? = null) {
 
     // Comprehensive list of top free OpenRouter models to try in sequence
     private val FREE_MODELS = listOf(
@@ -52,15 +53,24 @@ class GeminiRepository {
         .build()
 
     private fun getApiKey(): String {
-        val openRouterKey = runCatching { BuildConfig.OPENROUTER_API_KEY }.getOrDefault("")
-        if (openRouterKey.isNotBlank() && openRouterKey != "dummy_openrouter_api_key") {
-            return openRouterKey
+        // In release builds, never embed or leak raw OpenRouter production credentials.
+        // Check for user-provided BYOK from secure preferences first, then fallback to BuildConfig for debug.
+        if (context != null) {
+            val prefs = context.getSharedPreferences("kalynt_secure_prefs", Context.MODE_PRIVATE)
+            val userKey = prefs.getString("custom_openrouter_api_key", null)
+            if (!userKey.isNullOrBlank()) return userKey
+        }
+        if (BuildConfig.DEBUG) {
+            val openRouterKey = runCatching { BuildConfig.OPENROUTER_API_KEY }.getOrDefault("")
+            if (openRouterKey.isNotBlank() && openRouterKey != "dummy_openrouter_api_key") {
+                return openRouterKey
+            }
         }
         return ""
     }
 
     /**
-     * Context-aware Search using OpenRouter free model REST API with automatic multi-model fallback.
+     * Context-aware Search using Google Gemini REST API first, with automatic fallback.
      */
     suspend fun searchWithGemini(query: String, appContext: String = ""): String = withContext(Dispatchers.IO) {
         val prompt = buildString {
@@ -73,6 +83,44 @@ class GeminiRepository {
             appendLine(query)
             appendLine()
             appendLine("Please answer the query accurately using the provided app context if relevant, along with clear and helpful information.")
+        }
+
+        // 1. Try Direct Google Gemini REST API first
+        val geminiKey = BuildConfig.GEMINI_API_KEY
+        if (geminiKey.isNotBlank() && geminiKey != "dummy_gemini_api_key") {
+            try {
+                val geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+                val requestJson = JSONObject().apply {
+                    put("contents", JSONArray().put(JSONObject().apply {
+                        put("role", "user")
+                        put("parts", JSONArray().put(JSONObject().put("text", prompt)))
+                    }))
+                }
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val requestBody = requestJson.toString().toRequestBody(mediaType)
+                val request = Request.Builder()
+                    .url(geminiUrl)
+                    .header("x-goog-api-key", geminiKey)
+                    .post(requestBody)
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val bodyStr = response.body?.string() ?: ""
+                        val json = JSONObject(bodyStr)
+                        val candidates = json.optJSONArray("candidates")
+                        val firstCandidate = candidates?.optJSONObject(0)
+                        val content = firstCandidate?.optJSONObject("content")
+                        val parts = content?.optJSONArray("parts")
+                        val text = parts?.optJSONObject(0)?.optString("text")
+                        if (!text.isNullOrBlank()) {
+                            return@withContext text
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("GeminiRepository", "Search direct Gemini API exception: ${e.message}", e)
+            }
         }
 
         val messagesArray = JSONArray()
@@ -287,6 +335,9 @@ class GeminiRepository {
 
     private fun executeOpenRouterRequest(messagesArray: JSONArray): String {
         val apiKey = getApiKey()
+        if (apiKey.isBlank() && !BuildConfig.DEBUG) {
+            return "AI assistant is ready. To enable AI responses, please configure your Google Gemini API key or set a custom API key in Settings."
+        }
         val lastErrors = mutableListOf<String>()
 
         for (modelName in FREE_MODELS) {

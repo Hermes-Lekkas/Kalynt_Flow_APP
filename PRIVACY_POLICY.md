@@ -30,7 +30,7 @@ Kalynt Flow is designed with an **Offline-First philosophy**: all core productiv
 When you choose to authenticate via Google Sign-In or Firebase Authentication:
 - **Authentication Data**: User Email, Display Name, Profile Photo URL, and Firebase Unique User Identifier (UID).
 - **Synchronized Cloud Documents**: Your tasks, notes, calendar events, workspaces, and team channel messages are synchronized over TLS 1.3 encrypted connections with Google Cloud Firebase Firestore (`workspaces`, `tasks`, `notes`, `calendar_events`, `chat_messages`, `team_members`, `ai_reports`).
-- **Subscription Entitlements**: Google Play Billing purchase tokens and subscription statuses (Pro Monthly, Pro Annual, Lifetime Access).
+- **Subscription Entitlements**: Google Play Billing purchase tokens and subscription statuses (Pro Monthly, Pro Annual).
 
 ### D. Kalynt Desktop Companion & Local LAN P2P
 When you pair your device with Kalynt Desktop:
@@ -49,9 +49,12 @@ When you pair your device with Kalynt Desktop:
 
 | Android Permission | Requirement | Purpose & Justification |
 | :--- | :--- | :--- |
-| `android.permission.INTERNET` | Mandatory for Sync & AI | Used to communicate with Firebase Authentication, Cloud Firestore synchronization, GitHub REST API calls, and the AI Copilot API. |
+| `android.permission.INTERNET` | Mandatory for Sync & AI | Used to communicate with Firebase Authentication, Cloud Firestore synchronization, GitHub REST API calls, and AI Copilot services. |
 | `android.permission.ACCESS_NETWORK_STATE` | Recommended | Checks connectivity to seamlessly transition between offline-first Room local persistence and online Firestore sync. |
-| `android.permission.CAMERA` | Optional Runtime Permission | Used solely when you manually open the barcode/QR code or document scanning tools within the app. Camera data is processed in real time and is never uploaded to any external server without your consent. |
+| `android.permission.POST_NOTIFICATIONS` | Optional Runtime Permission (Android 13+) | Used to post local task reminder alerts and daily morning priority briefings. You can toggle this permission in Settings at any time. |
+| `android.permission.SCHEDULE_EXACT_ALARM` | System Alarm | Schedules exact-time task reminders and calendar notifications requested by the user. |
+| `android.permission.RECEIVE_BOOT_COMPLETED` | System Broadcast | Automatically reschedules your local active task alarms after device restart. |
+| `android.permission.VIBRATE` | Device Hardware | Provides subtle tactile feedback for alarms and priority alerts. |
 
 ---
 
@@ -62,10 +65,11 @@ Your primary records are persisted locally inside an AndroidX Room SQLite databa
 
 ### B. Generative AI Processing & Safety Guardrails
 When you interact with the Kalynt Flow AI Copilot:
-- **Context Injection**: Relevant snippets of your active workspace (such as recent tasks and notes) are structured and transmitted securely to our AI model gateway via TLS 1.3 to fulfill your specific prompt or action request.
+- **Subprocessor Disclosures**: In-app AI reasoning and context grounding are performed via **Google Gemini API** (Google LLC) and **OpenRouter** (OpenRouter Inc.).
+- **Context Injection**: Relevant snippets of your active workspace (such as recent task titles and notes) are transmitted securely over TLS 1.3 encrypted connections to fulfill your specific prompt or action request.
+- **Data Safety & Zero Model Training**: Prompts and workspace context sent to our AI endpoints are ephemeral, encrypted in transit, and are **NOT** used to train foundation models or retained for profiling.
 - **AI Output Transparency**: Every AI response is tagged with an explicit `✦ AI-Generated Response` badge.
 - **User Flagging & Continuous Refinement**: When you flag an AI response using the **Flag AI Output** feature, the reported issue is logged to Firestore and used to generate dynamic safety filters that prevent repeated mistakes in your active session.
-- **No Training on Private Data**: Your private workspace documents and notes are not used to train foundational AI models.
 
 ### C. GitHub REST API Integration
 When inspecting repositories, commits, or issues:
@@ -76,7 +80,9 @@ When inspecting repositories, commits, or issues:
 
 ## 5. Third-Party Service Providers & Subprocessors
 We partner only with industry-standard, compliant infrastructure providers:
-- **Google Cloud / Firebase**: Authentication, Cloud Firestore synchronization, and analytics infrastructure.
+- **Google Cloud / Firebase**: Authentication, Cloud Firestore synchronization, Play Integrity / App Check, and cloud infrastructure.
+- **Google Gemini API (Google LLC)**: Generative AI inference for copilot query resolution and workspace search.
+- **OpenRouter (OpenRouter Inc.)**: Alternative AI model inference gateway for chat completion.
 - **Google Play In-App Billing**: Secure purchase and subscription processing.
 - **GitHub API (Optional)**: Direct repository synchronization requested by the user.
 

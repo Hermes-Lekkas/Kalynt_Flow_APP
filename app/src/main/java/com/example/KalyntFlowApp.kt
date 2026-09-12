@@ -13,26 +13,34 @@ class KalyntFlowApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Ensure Firebase is initialized
-        FirebaseApp.initializeApp(this)
+        // Ensure Firebase is initialized safely
+        try {
+            FirebaseApp.initializeApp(this)
+        } catch (e: Exception) {
+            Log.e("KalyntFlowApp", "Firebase initialization failed: ${e.message}", e)
+        }
 
-        // Initialize Firebase App Check
-        val appCheck = FirebaseAppCheck.getInstance()
-        if (BuildConfig.DEBUG) {
-            try {
-                val factoryClass = Class.forName("com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory")
-                val getInstanceMethod = factoryClass.getMethod("getInstance")
-                val factory = getInstanceMethod.invoke(null) as? AppCheckProviderFactory
-                if (factory != null) {
-                    appCheck.installAppCheckProviderFactory(factory)
+        // Initialize Firebase App Check with error handling
+        try {
+            val appCheck = FirebaseAppCheck.getInstance()
+            if (BuildConfig.DEBUG) {
+                try {
+                    val factoryClass = Class.forName("com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory")
+                    val getInstanceMethod = factoryClass.getMethod("getInstance")
+                    val factory = getInstanceMethod.invoke(null) as? AppCheckProviderFactory
+                    if (factory != null) {
+                        appCheck.installAppCheckProviderFactory(factory)
+                    }
+                } catch (e: Exception) {
+                    Log.w("KalyntFlowApp", "Debug App Check provider not available: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.w("KalyntFlowApp", "Debug App Check provider not available: ${e.message}")
+            } else {
+                appCheck.installAppCheckProviderFactory(
+                    PlayIntegrityAppCheckProviderFactory.getInstance()
+                )
             }
-        } else {
-            appCheck.installAppCheckProviderFactory(
-                PlayIntegrityAppCheckProviderFactory.getInstance()
-            )
+        } catch (e: Exception) {
+            Log.e("KalyntFlowApp", "App Check initialization failed: ${e.message}", e)
         }
 
         // Proactive Security & Cryptographic Integrity Verification & Policy Enforcement
