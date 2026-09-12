@@ -49,6 +49,7 @@ import androidx.navigation.NavController
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
+import com.example.BuildConfig
 import com.example.data.AiAction
 import com.example.data.ChatMessage
 import com.example.data.GeminiRepository
@@ -90,7 +91,7 @@ fun ChatScreen(
     var isGenerating by remember { mutableStateOf(false) }
     var showReviewerAuthDialog by remember { mutableStateOf(false) }
 
-    if (showReviewerAuthDialog) {
+    if (BuildConfig.DEBUG && showReviewerAuthDialog) {
         ReviewerUnlockDialog(
             onDismissRequest = { showReviewerAuthDialog = false },
             onUnlockSuccess = {
@@ -372,29 +373,31 @@ fun ChatScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            if (BuildConfig.DEBUG) {
+                Spacer(modifier = Modifier.height(10.dp))
 
-            OutlinedButton(
-                onClick = {
-                    showReviewerAuthDialog = true
-                },
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Science,
-                    contentDescription = "Test Unlock",
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Unlock Copilot (Reviewer Mode)",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                OutlinedButton(
+                    onClick = {
+                        showReviewerAuthDialog = true
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Science,
+                        contentDescription = "Test Unlock",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Unlock Copilot (Reviewer Mode)",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -1382,6 +1385,15 @@ fun processAiResponseAndExecuteActions(
                                             details = if (toggled.isCompleted) "Completed" else "Incomplete"
                                         )
                                     )
+                                } else {
+                                    val msg = viewModel.uiMessage.value ?: "Could not find task matching \"$target\""
+                                    actionsPerformed.add(
+                                        AiAction(
+                                            type = "TASK_NOTICE",
+                                            title = "Task update skipped",
+                                            details = msg
+                                        )
+                                    )
                                 }
                             }
                             "delete_task" -> {
@@ -1395,6 +1407,15 @@ fun processAiResponseAndExecuteActions(
                                             details = "Removed task"
                                         )
                                     )
+                                } else {
+                                    val msg = viewModel.uiMessage.value ?: "Could not find task matching \"$target\""
+                                    actionsPerformed.add(
+                                        AiAction(
+                                            type = "TASK_NOTICE",
+                                            title = "Task deletion skipped",
+                                            details = msg
+                                        )
+                                    )
                                 }
                             }
                             "delete_note" -> {
@@ -1406,6 +1427,15 @@ fun processAiResponseAndExecuteActions(
                                             type = "DELETE_NOTE",
                                             title = deleted.title,
                                             details = "Removed note"
+                                        )
+                                    )
+                                } else {
+                                    val msg = viewModel.uiMessage.value ?: "Could not find note matching \"$target\""
+                                    actionsPerformed.add(
+                                        AiAction(
+                                            type = "NOTE_NOTICE",
+                                            title = "Note deletion skipped",
+                                            details = msg
                                         )
                                     )
                                 }

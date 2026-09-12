@@ -7,8 +7,19 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function userEmail() {
+      return request.auth.token.email;
+    }
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isWorkspaceMember(workspaceId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/workspaces/$(workspaceId)) &&
+        userEmail() != null &&
+        userEmail() in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberEmails;
     }
 
     // User profile and private user-scoped data
@@ -22,39 +33,56 @@ service cloud.firestore {
 
     // Workspaces collection and subcollections (members, comments, typing)
     match /workspaces/{workspaceId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated() && userEmail() != null && userEmail() in resource.data.memberEmails;
+      allow create: if isAuthenticated() && userEmail() != null && userEmail() in request.resource.data.memberEmails;
+      allow update: if isAuthenticated() && userEmail() != null && (userEmail() in resource.data.memberEmails || userEmail() in request.resource.data.memberEmails);
+      allow delete: if isAuthenticated() && userEmail() != null && userEmail() in resource.data.memberEmails;
 
       match /members/{memberId} {
-        allow read, write: if isAuthenticated();
+        allow read: if isAuthenticated() && (isWorkspaceMember(workspaceId) || (userEmail() != null && resource.data.email == userEmail()));
+        allow create: if isAuthenticated() && (isWorkspaceMember(workspaceId) || (userEmail() != null && request.resource.data.email == userEmail()));
+        allow update, delete: if isAuthenticated() && isWorkspaceMember(workspaceId);
       }
 
       match /comments/{commentId} {
-        allow read, write: if isAuthenticated();
+        allow read: if isWorkspaceMember(workspaceId);
+        allow create: if isWorkspaceMember(workspaceId) && userEmail() != null && request.resource.data.authorEmail == userEmail();
+        allow update, delete: if isWorkspaceMember(workspaceId);
       }
 
       match /typing/{userId} {
-        allow read, write: if isAuthenticated();
+        allow read, write: if isWorkspaceMember(workspaceId);
       }
     }
 
-    // Tasks collection
+    // Tasks collection: strictly scoped to workspace members and assigned email lists
     match /tasks/{taskId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated() && userEmail() != null && (userEmail() in resource.data.memberEmails || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId)));
+      allow create: if isAuthenticated() && userEmail() != null && (userEmail() in request.resource.data.memberEmails || (request.resource.data.workspaceId != null && isWorkspaceMember(request.resource.data.workspaceId)));
+      allow update: if isAuthenticated() && userEmail() != null && ((userEmail() in resource.data.memberEmails || userEmail() in request.resource.data.memberEmails) || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId)));
+      allow delete: if isAuthenticated() && userEmail() != null && (userEmail() in resource.data.memberEmails || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId)));
     }
 
-    // Notes collection
+    // Notes collection: strictly scoped to workspace members and assigned email lists
     match /notes/{noteId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated() && userEmail() != null && (userEmail() in resource.data.memberEmails || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId)));
+      allow create: if isAuthenticated() && userEmail() != null && (userEmail() in request.resource.data.memberEmails || (request.resource.data.workspaceId != null && isWorkspaceMember(request.resource.data.workspaceId)));
+      allow update: if isAuthenticated() && userEmail() != null && ((userEmail() in resource.data.memberEmails || userEmail() in request.resource.data.memberEmails) || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId)));
+      allow delete: if isAuthenticated() && userEmail() != null && (userEmail() in resource.data.memberEmails || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId)));
     }
 
     // Workspace memberships collection
     match /memberships/{membershipId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated() && (userEmail() != null && (resource.data.email == userEmail() || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId))));
+      allow create: if isAuthenticated() && (userEmail() != null && (request.resource.data.email == userEmail() || (request.resource.data.workspaceId != null && isWorkspaceMember(request.resource.data.workspaceId))));
+      allow update, delete: if isAuthenticated() && (userEmail() != null && (resource.data.email == userEmail() || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId))));
     }
 
     // Workspace members global collection
     match /workspace_members/{memberId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated() && (userEmail() != null && (resource.data.email == userEmail() || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId))));
+      allow create: if isAuthenticated() && (userEmail() != null && (request.resource.data.email == userEmail() || (request.resource.data.workspaceId != null && isWorkspaceMember(request.resource.data.workspaceId))));
+      allow update, delete: if isAuthenticated() && (userEmail() != null && (resource.data.email == userEmail() || (resource.data.workspaceId != null && isWorkspaceMember(resource.data.workspaceId))));
     }
 
     // Default deny rule

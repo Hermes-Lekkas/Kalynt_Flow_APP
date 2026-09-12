@@ -323,11 +323,15 @@ class BillingManager(
     }
 
     // -------------------------------------------------------------------------
-    // Testing & Reviewer QA Sandbox Helpers
+    // Testing & Reviewer QA Sandbox Helpers (Debug builds ONLY)
     // -------------------------------------------------------------------------
 
-    /** Unlocks all Pro features instantly for testing/QA/Play Store review */
+    /** Unlocks all Pro features instantly for local QA / debug builds. Disabled in release builds. */
     fun setTestProTier(tier: String = "PRO_ANNUAL") {
+        if (!com.example.BuildConfig.DEBUG) {
+            Log.w(TAG, "setTestProTier rejected: Reviewer test sandbox is disabled in release builds.")
+            return
+        }
         _activeTier.value = tier
         prefs.edit().putString("active_tier", tier).apply()
         Log.d(TAG, "Test Pro tier unlocked: $tier")
@@ -335,6 +339,10 @@ class BillingManager(
 
     /** Resets tier back to Free */
     fun resetTierToFree() {
+        if (!com.example.BuildConfig.DEBUG) {
+            Log.w(TAG, "resetTierToFree rejected: Test sandbox is disabled in release builds.")
+            return
+        }
         _activeTier.value = "FREE"
         prefs.edit().putString("active_tier", "FREE").apply()
         Log.d(TAG, "Subscription tier reset to FREE")
@@ -342,6 +350,10 @@ class BillingManager(
 
     /** Toggles between Free and Pro Annual for quick verification */
     fun toggleTestProTier() {
+        if (!com.example.BuildConfig.DEBUG) {
+            Log.w(TAG, "toggleTestProTier rejected: Test sandbox is disabled in release builds.")
+            return
+        }
         if (_activeTier.value == "FREE") {
             setTestProTier("PRO_ANNUAL")
         } else {

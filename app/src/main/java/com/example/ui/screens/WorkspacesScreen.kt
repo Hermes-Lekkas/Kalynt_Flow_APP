@@ -27,6 +27,7 @@ import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.BuildConfig
 import com.example.data.local.WorkspaceEntity
 import com.example.data.local.WorkspaceMemberEntity
 import com.example.ui.components.ReviewerUnlockDialog
@@ -45,7 +46,7 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
     var showProUpgradeDialog by remember { mutableStateOf(false) }
     var showReviewerAuthDialog by remember { mutableStateOf(false) }
 
-    if (showReviewerAuthDialog) {
+    if (BuildConfig.DEBUG && showReviewerAuthDialog) {
         ReviewerUnlockDialog(
             onDismissRequest = { showReviewerAuthDialog = false },
             onUnlockSuccess = {
@@ -246,14 +247,16 @@ fun WorkspacesScreen(navController: NavController, viewModel: MainAppViewModel) 
             },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            showProUpgradeDialog = false
-                            showReviewerAuthDialog = true
-                        },
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("🧪 Test Unlock", fontWeight = FontWeight.SemiBold)
+                    if (BuildConfig.DEBUG) {
+                        OutlinedButton(
+                            onClick = {
+                                showProUpgradeDialog = false
+                                showReviewerAuthDialog = true
+                            },
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("🧪 Test Unlock", fontWeight = FontWeight.SemiBold)
+                        }
                     }
 
                     Button(

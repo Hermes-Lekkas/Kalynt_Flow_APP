@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.billingclient.api.ProductDetails
+import com.example.BuildConfig
 import com.example.data.BillingResult2
 import com.example.data.BillingSkus
 import com.example.ui.components.ReviewerUnlockDialog
@@ -101,7 +102,7 @@ fun PricingScreen(navController: NavController, viewModel: MainAppViewModel) {
     var isYearlyBilling by remember { mutableStateOf(activeTier == "PRO_ANNUAL") }
     var showReviewerAuthDialog by remember { mutableStateOf(false) }
 
-    if (showReviewerAuthDialog) {
+    if (BuildConfig.DEBUG && showReviewerAuthDialog) {
         ReviewerUnlockDialog(
             onDismissRequest = { showReviewerAuthDialog = false },
             onUnlockSuccess = {
@@ -340,111 +341,113 @@ fun PricingScreen(navController: NavController, viewModel: MainAppViewModel) {
             }
         }
 
-        Spacer(Modifier.height(28.dp))
+        if (BuildConfig.DEBUG) {
+            Spacer(Modifier.height(28.dp))
 
-        // ── Reviewer & QA Testing Sandbox Card ──────────────────────────────
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (activeTier != "FREE") Color(0xFFE8F5E9) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-            ),
-            border = androidx.compose.foundation.BorderStroke(
-                1.5.dp,
-                if (activeTier != "FREE") Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            // ── Reviewer & QA Testing Sandbox Card (DEBUG ONLY) ──────────────────
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (activeTier != "FREE") Color(0xFFE8F5E9) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.5.dp,
+                    if (activeTier != "FREE") Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                ),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(
-                                if (activeTier != "FREE") Color(0xFF4CAF50).copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (activeTier != "FREE") Icons.Default.CheckCircle else Icons.Default.Science,
-                            contentDescription = "QA Sandbox",
-                            tint = if (activeTier != "FREE") Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (activeTier != "FREE") "🧪 Testing Mode: Pro Unlocked" else "🧪 QA & Reviewer Sandbox",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (activeTier != "FREE") Color(0xFF1B5E20) else MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (activeTier != "FREE") "All features & restrictions are currently bypassed." else "One-tap test unlock for Play Store inspection",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (activeTier != "FREE") Color(0xFF2E7D32) else MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
-
-                Text(
-                    text = if (activeTier != "FREE")
-                        "All Pro capabilities (unlimited AI Copilot, unlimited workspaces, custom icons, full team collaboration) are fully active."
-                    else
-                        "Testing or reviewing the application? Tap below to instantly unlock all Pro features and bypass all limits without performing a payment.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (activeTier != "FREE") Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(Modifier.height(2.dp))
-
-                if (activeTier == "FREE") {
-                    Button(
-                        onClick = {
-                            showReviewerAuthDialog = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                    ) {
-                        Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Unlock All Features (Reviewer Mode)", fontWeight = FontWeight.Bold)
-                    }
-                } else {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.resetTierToFree()
-                                Toast.makeText(context, "Subscription reset to Free tier.", Toast.LENGTH_SHORT).show()
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f).height(48.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(
+                                    if (activeTier != "FREE") Color(0xFF4CAF50).copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text("Reset to Free", fontWeight = FontWeight.SemiBold)
+                            Icon(
+                                imageVector = if (activeTier != "FREE") Icons.Default.CheckCircle else Icons.Default.Science,
+                                contentDescription = "QA Sandbox",
+                                tint = if (activeTier != "FREE") Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
 
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (activeTier != "FREE") "🧪 Testing Mode: Pro Unlocked" else "🧪 QA & Reviewer Sandbox",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (activeTier != "FREE") Color(0xFF1B5E20) else MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (activeTier != "FREE") "All features & restrictions are currently bypassed." else "One-tap test unlock for Play Store inspection",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (activeTier != "FREE") Color(0xFF2E7D32) else MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (activeTier != "FREE")
+                            "All Pro capabilities (unlimited AI Copilot, unlimited workspaces, custom icons, full team collaboration) are fully active."
+                        else
+                            "Testing or reviewing the application? Tap below to instantly unlock all Pro features and bypass all limits without performing a payment.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (activeTier != "FREE") Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(2.dp))
+
+                    if (activeTier == "FREE") {
                         Button(
                             onClick = {
                                 showReviewerAuthDialog = true
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f).height(48.dp)
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
                         ) {
-                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
-                            Spacer(Modifier.width(6.dp))
-                            Text("Pro Active", color = Color.White, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Unlock All Features (Reviewer Mode)", fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.resetTierToFree()
+                                    Toast.makeText(context, "Subscription reset to Free tier.", Toast.LENGTH_SHORT).show()
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f).height(48.dp)
+                            ) {
+                                Text("Reset to Free", fontWeight = FontWeight.SemiBold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    showReviewerAuthDialog = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f).height(48.dp)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                                Spacer(Modifier.width(6.dp))
+                                Text("Pro Active", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }

@@ -32,6 +32,7 @@ object ReviewerAuthConstants {
     const val REVIEWER_PASSWORD = "KalyntReviewer!2026$"
 
     fun isValid(username: String, password: String): Boolean {
+        if (!com.example.BuildConfig.DEBUG) return false
         val u = username.trim().lowercase()
         val p = password.trim()
         val validUser = u == DEFAULT_USERNAME || u == ALT_USERNAME_EMAIL || u == ALT_USERNAME_SHORT
@@ -45,6 +46,9 @@ fun ReviewerUnlockDialog(
     onDismissRequest: () -> Unit,
     onUnlockSuccess: () -> Unit
 ) {
+    if (!com.example.BuildConfig.DEBUG) {
+        return
+    }
     val context = LocalContext.current
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }

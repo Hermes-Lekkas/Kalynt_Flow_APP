@@ -247,25 +247,33 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
 
     /** Unlock all features (Pro Annual) for Play Store reviewers and QA testing */
     fun unlockAllFeaturesForTesting() {
-        billingManager.setTestProTier("PRO_ANNUAL")
+        if (com.example.BuildConfig.DEBUG) {
+            billingManager.setTestProTier("PRO_ANNUAL")
+        }
     }
 
     /** Reset active tier back to Free */
     fun resetTierToFree() {
-        billingManager.resetTierToFree()
+        if (com.example.BuildConfig.DEBUG) {
+            billingManager.resetTierToFree()
+        }
     }
 
     /** Toggle between Free and Pro Annual for quick testing */
     fun toggleTestProTier() {
-        billingManager.toggleTestProTier()
+        if (com.example.BuildConfig.DEBUG) {
+            billingManager.toggleTestProTier()
+        }
     }
 
     /** Update subscription tier (used for testing / sandbox scenarios) */
     fun updateSubscriptionTier(tier: String) {
-        if (tier == "FREE") {
-            billingManager.resetTierToFree()
-        } else {
-            billingManager.setTestProTier(tier)
+        if (com.example.BuildConfig.DEBUG) {
+            if (tier == "FREE") {
+                billingManager.resetTierToFree()
+            } else {
+                billingManager.setTestProTier(tier)
+            }
         }
     }
 
@@ -628,11 +636,20 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
             toggleTask(exactMatches.first())
             return exactMatches.first()
         }
+        if (exactMatches.size > 1) {
+            uiMessage.value = "Multiple tasks match \"$target\". Please specify the exact task ID."
+            return null
+        }
         val subMatches = list.filter { it.title.contains(target, ignoreCase = true) }
         if (subMatches.size == 1) {
             toggleTask(subMatches.first())
             return subMatches.first()
         }
+        if (subMatches.size > 1) {
+            uiMessage.value = "Multiple tasks found containing \"$target\". Please be more specific."
+            return null
+        }
+        uiMessage.value = "No task found matching \"$target\"."
         return null
     }
 
@@ -662,11 +679,20 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
             deleteTask(exactMatches.first())
             return exactMatches.first()
         }
+        if (exactMatches.size > 1) {
+            uiMessage.value = "Multiple tasks match \"$target\". Please specify the exact task ID."
+            return null
+        }
         val subMatches = list.filter { it.title.contains(target, ignoreCase = true) }
         if (subMatches.size == 1) {
             deleteTask(subMatches.first())
             return subMatches.first()
         }
+        if (subMatches.size > 1) {
+            uiMessage.value = "Multiple tasks found containing \"$target\". Please be more specific."
+            return null
+        }
+        uiMessage.value = "No task found matching \"$target\"."
         return null
     }
 
@@ -712,11 +738,20 @@ class MainAppViewModel(application: Application) : AndroidViewModel(application)
             deleteNote(exactMatches.first())
             return exactMatches.first()
         }
+        if (exactMatches.size > 1) {
+            uiMessage.value = "Multiple notes match \"$target\". Please specify the exact note ID."
+            return null
+        }
         val subMatches = list.filter { it.title.contains(target, ignoreCase = true) }
         if (subMatches.size == 1) {
             deleteNote(subMatches.first())
             return subMatches.first()
         }
+        if (subMatches.size > 1) {
+            uiMessage.value = "Multiple notes found containing \"$target\". Please be more specific."
+            return null
+        }
+        uiMessage.value = "No note found matching \"$target\"."
         return null
     }
 

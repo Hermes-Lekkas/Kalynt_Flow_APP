@@ -6,6 +6,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.example.BuildConfig
 import com.example.notifications.NotificationHelper
 import com.example.notifications.PermissionHelper
 import com.example.ui.components.*
@@ -85,7 +86,7 @@ fun TeamScreen(
     var showMembersSheet by remember { mutableStateOf(false) }
     var showReportWorkspaceUserDialog by remember { mutableStateOf(false) }
 
-    if (showReviewerAuthDialog) {
+    if (BuildConfig.DEBUG && showReviewerAuthDialog) {
         ReviewerUnlockDialog(
             onDismissRequest = { showReviewerAuthDialog = false },
             onUnlockSuccess = {
@@ -823,14 +824,16 @@ fun TeamScreen(
             },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            showProUpgradeDialog = false
-                            showReviewerAuthDialog = true
-                        },
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("🧪 Test Unlock", fontWeight = FontWeight.SemiBold)
+                    if (BuildConfig.DEBUG) {
+                        OutlinedButton(
+                            onClick = {
+                                showProUpgradeDialog = false
+                                showReviewerAuthDialog = true
+                            },
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("🧪 Test Unlock", fontWeight = FontWeight.SemiBold)
+                        }
                     }
 
                     Button(
