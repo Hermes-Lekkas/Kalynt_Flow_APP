@@ -124,7 +124,63 @@ class AppRepository(private val context: Context) {
                 } catch (e: Exception) {
                     android.util.Log.w("AppRepository", "Error attaching Firestore listeners", e)
                 }
+                repoScope.launch {
+                    backfillMissingMemberEmails()
+                }
             }
+        }
+    }
+
+    suspend fun backfillMissingMemberEmails() {
+        val currentEmail = userEmail
+        if (currentEmail.isBlank() || isGuest) return
+        try {
+            val workspaces = roomDb.workspaceDao().getAllWorkspacesSync()
+            for (ws in workspaces) {
+                if (ws.memberEmails.isEmpty() || !ws.memberEmails.contains(currentEmail)) {
+                    val updated = ws.copy(memberEmails = (ws.memberEmails + currentEmail).distinct())
+                    roomDb.workspaceDao().updateWorkspace(updated)
+                    if (!isGuest) {
+                        try {
+                            db.collection("workspaces").document(updated.id).set(updated).await()
+                        } catch (e: Exception) {
+                            android.util.Log.w("AppRepository", "Notice: Backfill workspace sync error: ${e.message}")
+                        }
+                    }
+                }
+            }
+
+            val tasks = roomDb.taskDao().getAllTasksSync()
+            for (task in tasks) {
+                if (task.memberEmails.isEmpty() || !task.memberEmails.contains(currentEmail)) {
+                    val updated = task.copy(memberEmails = (task.memberEmails + currentEmail).distinct())
+                    roomDb.taskDao().updateTask(updated)
+                    if (!isGuest) {
+                        try {
+                            db.collection("tasks").document(updated.id).set(updated).await()
+                        } catch (e: Exception) {
+                            android.util.Log.w("AppRepository", "Notice: Backfill task sync error: ${e.message}")
+                        }
+                    }
+                }
+            }
+
+            val notes = roomDb.noteDao().getAllNotesSync()
+            for (note in notes) {
+                if (note.memberEmails.isEmpty() || !note.memberEmails.contains(currentEmail)) {
+                    val updated = note.copy(memberEmails = (note.memberEmails + currentEmail).distinct())
+                    roomDb.noteDao().updateNote(updated)
+                    if (!isGuest) {
+                        try {
+                            db.collection("notes").document(updated.id).set(updated).await()
+                        } catch (e: Exception) {
+                            android.util.Log.w("AppRepository", "Notice: Backfill note sync error: ${e.message}")
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("AppRepository", "Notice: Backfill error: ${e.message}")
         }
     }
 

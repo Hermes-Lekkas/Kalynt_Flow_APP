@@ -46,6 +46,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks ORDER BY timestamp DESC")
     fun getAllTasks(): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks ORDER BY timestamp DESC")
+    suspend fun getAllTasksSync(): List<TaskEntity>
+
     @Query("SELECT * FROM tasks WHERE workspaceId = :workspaceId ORDER BY timestamp DESC")
     fun getTasksForWorkspace(workspaceId: String): Flow<List<TaskEntity>>
 
