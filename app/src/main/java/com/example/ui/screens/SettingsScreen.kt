@@ -36,8 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.BuildConfig
-import com.example.desktop.DesktopConnectionManager
-import com.example.desktop.PairingManager
 import com.example.notifications.NotificationHelper
 import com.example.notifications.PermissionHelper
 import com.example.security.SecurityHardening
@@ -46,17 +44,12 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    navController: NavController,
-    pairingManager: PairingManager = PairingManager.getInstance(LocalContext.current),
-    connectionManager: DesktopConnectionManager = DesktopConnectionManager.getInstance(LocalContext.current)
+    navController: NavController
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
-
-    val pairedDesktop = remember { pairingManager.getPairedDesktop() }
-    var isUnpairing by remember { mutableStateOf(false) }
 
     // Device and app integrity status
     val securityReport = remember { SecurityHardening.checkSecurityStatus(context) }
@@ -81,7 +74,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings & Companion", fontWeight = FontWeight.Bold) },
+                title = { Text("Settings & Security", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(
                         onClick = { navController.popBackStack() },
@@ -143,136 +136,6 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.testTag("app_version_label")
                         )
-                    }
-                }
-            }
-
-            // Desktop Companion Connection Status
-            Text(
-                text = "Kalynt Desktop Companion",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                tonalElevation = 1.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (pairedDesktop != null) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = pairedDesktop.desktopName,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Host: ${pairedDesktop.host}:${pairedDesktop.port} (TLS 1.3)",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFF2E7D32).copy(alpha = 0.15f)
-                            ) {
-                                Text(
-                                    text = "PAIRED",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = Color(0xFF2E7D32),
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-
-                        if (!pairedDesktop.certFingerprint.isNullOrBlank()) {
-                            Text(
-                                text = "Pinned SHA-256 Fingerprint:\n${pairedDesktop.certFingerprint}",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 10.sp
-                                ),
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { navController.navigate("agents") },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Open Agents")
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    isUnpairing = true
-                                    coroutineScope.launch {
-                                        connectionManager.disconnect()
-                                        pairingManager.unpair()
-                                        isUnpairing = false
-                                        Toast.makeText(context, "Unpaired desktop companion.", Toast.LENGTH_SHORT).show()
-                                        navController.popBackStack()
-                                    }
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                modifier = Modifier.testTag("unpair_desktop_button")
-                            ) {
-                                if (isUnpairing) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                } else {
-                                    Text("Unpair")
-                                }
-                            }
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "No desktop companion currently paired.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "Pair with Kalynt Desktop IDE on your computer to run local AI agents and real-time commands.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                            Button(
-                                onClick = { navController.navigate("pairing") },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth().testTag("start_pairing_flow_button")
-                            ) {
-                                Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Pair Companion Device")
-                            }
-                        }
                     }
                 }
             }
@@ -352,12 +215,12 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Companion & Task Notifications",
+                            text = "Task & Reminder Notifications",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Receive alerts for task deadlines and agent completions",
+                            text = "Receive alerts for scheduled tasks and workspace deadlines",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.secondary
                         )

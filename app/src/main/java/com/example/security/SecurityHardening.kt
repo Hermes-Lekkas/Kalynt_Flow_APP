@@ -237,86 +237,6 @@ object SecurityHardening {
     }
 
     /**
-     * Creates a robust X509TrustManager for companion TLS:
-     * - When a fingerprint is pinned: strictly enforces SHA-256 match on leaf certificate.
-     * - When NO fingerprint is pinned: delegates to systemDefaultTrustManager for full CA chain validation!
-     */
-    fun createDesktopTrustManager(expectedSha256Fingerprint: String?): X509TrustManager {
-        val cleanedExpected = expectedSha256Fingerprint?.replace(":", "")?.replace(" ", "")?.uppercase()
-
-        return object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-                systemDefaultTrustManager.checkClientTrusted(chain, authType)
-            }
-
-            @Throws(CertificateException::class)
-            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-                if (chain.isNullOrEmpty()) {
-                    throw CertificateException("Server certificate chain is empty.")
-                }
-
-                if (!cleanedExpected.isNullOrBlank()) {
-                    // Pinned certificate verification
-                    val leafCert = chain[0]
-                    val certFingerprint = calculateSha256Fingerprint(leafCert).replace(":", "").uppercase()
-
-                    if (certFingerprint != cleanedExpected) {
-                        safeLog(TAG, "Pinned certificate fingerprint mismatch! Expected: $cleanedExpected, Received: $certFingerprint", isError = true)
-                        throw CertificateException("Server certificate does not match pinned SHA-256 fingerprint.")
-                    }
-                    safeLog(TAG, "Server certificate verified against pinned SHA-256 fingerprint successfully.")
-                } else {
-                    // Fingerprint not pinned: ENFORCE FULL STANDARD SYSTEM CA CHAIN VALIDATION
-                    safeLog(TAG, "No certificate fingerprint pinned. Enforcing standard system CA chain validation.")
-                    systemDefaultTrustManager.checkServerTrusted(chain, authType)
-                }
-            }
-
-            override fun getAcceptedIssuers(): Array<X509Certificate> =
-                systemDefaultTrustManager.acceptedIssuers
-        }
-    }
-
-    /**
-     * Creates a strict HostnameVerifier:
-     * - When fingerprint is pinned: checks if peer certificate in SSLSession matches the pinned fingerprint.
-     * - Otherwise: delegates to standard Android default HostnameVerifier.
-     */
-    fun createDesktopHostnameVerifier(expectedSha256Fingerprint: String?): HostnameVerifier {
-        val cleanedExpected = expectedSha256Fingerprint?.replace(":", "")?.replace(" ", "")?.uppercase()
-        val defaultVerifier = HttpsURLConnection.getDefaultHostnameVerifier()
-
-        return HostnameVerifier { hostname, session ->
-            if (!cleanedExpected.isNullOrBlank()) {
-                try {
-                    val peerCerts = session.peerCertificates
-                    if (peerCerts.isNotEmpty() && peerCerts[0] is X509Certificate) {
-                        val leafCert = peerCerts[0] as X509Certificate
-                        val fingerprint = calculateSha256Fingerprint(leafCert).replace(":", "").uppercase()
-                        if (fingerprint == cleanedExpected) {
-                            return@HostnameVerifier true
-                        }
-                    }
-                } catch (e: Exception) {
-                    safeLog(TAG, "Failed to verify peer certificate during hostname verification: ${e.message}", isError = true)
-                    return@HostnameVerifier false
-                }
-            }
-            // Delegate to default strict hostname verification
-            defaultVerifier.verify(hostname, session)
-        }
-    }
-
-    /**
-     * Creates an SSLSocketFactory configured with the companion trust manager.
-     */
-    fun createDesktopSslSocketFactory(trustManager: X509TrustManager): SSLSocketFactory {
-        val sslContext = SSLContext.getInstance("TLS")
-        sslContext.init(null, arrayOf<TrustManager>(trustManager), SecureRandom())
-        return sslContext.socketFactory
-    }
-
-    /**
      * Evaluates comprehensive security status and executes protective enforcement actions.
      */
     fun checkSecurityStatus(context: Context): SecurityStatusReport {
@@ -363,16 +283,12 @@ object SecurityHardening {
     }
 
     /**
-     * Enforcement: if integrity violation is detected, wipe sensitive cached tokens.
+     * Enforcement: if integrity violation is detected, log security restrictions.
      */
     fun enforceIntegrityPolicy(context: Context) {
         val report = checkSecurityStatus(context)
         if (report.securityLevel == SecurityLevel.COMPROMISED_INTEGRITY_VIOLATION) {
             safeLog(TAG, "Integrity violation detected! Enforcing security restrictions.", isError = true)
-            // Wipe desktop pairing credentials
-            try {
-                com.example.desktop.PairingManager.getInstance(context).wipeCredentialsOnViolation()
-            } catch (_: Exception) {}
         }
     }
 }

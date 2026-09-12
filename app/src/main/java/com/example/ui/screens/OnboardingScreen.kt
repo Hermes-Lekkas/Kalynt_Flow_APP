@@ -81,7 +81,7 @@ fun OnboardingScreen(
     val goals = remember {
         listOf(
             Triple("Optimize productivity & task flow", "Streamline daily tasks and task pipelines", Icons.Outlined.Speed),
-            Triple("AI Workspace Companion", "Leverage smart insights and context assistance", Icons.Outlined.AutoAwesome),
+            Triple("AI Productivity Assistant", "Leverage smart insights and context assistance", Icons.Outlined.AutoAwesome),
             Triple("Team & Space Management", "Coordinate shared notes and team workspaces", Icons.Outlined.Group),
             Triple("GitHub & Development Sync", "Connect repositories and issue tracking", Icons.Outlined.IntegrationInstructions)
         )
@@ -471,7 +471,7 @@ private fun StepGoals(
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            text = "Select your main goal to calibrate AI Companion suggestions and workspace defaults.",
+            text = "Select your main goal to calibrate AI Assistant suggestions and workspace defaults.",
             style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
@@ -779,7 +779,7 @@ private fun StepConsent(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "I consent to local processing of workspace and profile data for AI companion insights under GDPR guidelines.",
+                    text = "I consent to local processing of workspace and profile data for AI productivity insights under GDPR guidelines.",
                     style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)

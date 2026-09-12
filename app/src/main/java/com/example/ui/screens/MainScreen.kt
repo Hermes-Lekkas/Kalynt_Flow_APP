@@ -634,54 +634,6 @@ fun MainScreen(
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
 
-                            // Companion Agents
-                            Surface(
-                                onClick = {
-                                    showProfileMenu = false
-                                    navController.navigate("agents")
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                color = Color.Transparent,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                                    .testTag("companion_agents_menu_item")
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.SmartToy,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(15.dp),
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            "Companion Agents",
-                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            "Control desktop AI agents & execute commands",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                            color = MaterialTheme.colorScheme.secondary
-                                        )
-                                    }
-                                }
-                            }
-
                             // Settings & Security Audit
                             Surface(
                                 onClick = {
@@ -1022,8 +974,6 @@ fun MainScreen(
             composable("chat") { ChatScreen(navController, mainAppViewModel, onSignInClick = { authViewModel.signOut() }) }
             composable("github") { GitHubScreen() }
             composable("pricing") { PricingScreen(navController, mainAppViewModel) }
-            composable("agents") { AgentsScreen(navController) }
-            composable("pairing") { PairingScreen(navController) }
             composable("settings") { SettingsScreen(navController) }
         }
     }

@@ -593,7 +593,7 @@ fun ChatScreen(
 
             // Small AI Disclaimer above input box
             Text(
-                text = "The ai companion may display inaccurate info, including about people, so double-check its responses.",
+                text = "AI may display inaccurate info, including about people, so double-check its responses.",
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
